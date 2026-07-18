@@ -3,6 +3,7 @@ import Drawer from '../components/Drawer'
 import Avatar from '../components/Avatar'
 import StatusPill from '../components/StatusPill'
 import * as membersApi from '../api/members'
+import { getDocumentSignedUrl } from '../api/media'
 
 function PillList({ items, cls }) {
   if (!items || items.length === 0) return <span className="xs">None on file.</span>
@@ -18,6 +19,7 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
   const [requestOpen, setRequestOpen] = useState(false)
   const [issueText, setIssueText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [viewingDocId, setViewingDocId] = useState(null)
 
   useEffect(() => {
     if (!userId) return
@@ -94,6 +96,18 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
     membersApi.getMemberDocuments(userId).then(setDocuments).catch(() => {})
   }
 
+  async function handleViewDoc(doc) {
+    setViewingDocId(doc.userDocumentId)
+    try {
+      const url = await getDocumentSignedUrl(doc.fileUrl)
+      if (url) window.open(url, '_blank', 'noreferrer')
+    } catch {
+      alert('Could not open this document. Please try again.')
+    } finally {
+      setViewingDocId(null)
+    }
+  }
+
   return (
     <Drawer open onClose={onClose}>
       <div className="drawer-head">
@@ -160,7 +174,9 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
             <div className="xs">{d.isVerified ? 'Verified' : 'Not verified'}</div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <a className="btn-o btn-sm" href={d.fileUrl} target="_blank" rel="noreferrer">View</a>
+            <button className="btn-o btn-sm" onClick={() => handleViewDoc(d)} disabled={viewingDocId === d.userDocumentId}>
+              {viewingDocId === d.userDocumentId ? 'Loading…' : 'View'}
+            </button>
             <button className="btn-o btn-sm" onClick={() => handleVerifyDoc(d)}>{d.isVerified ? 'Unverify' : 'Verify'}</button>
           </div>
         </div>

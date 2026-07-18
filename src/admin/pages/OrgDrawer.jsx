@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Drawer from '../components/Drawer'
 import Avatar from '../components/Avatar'
 import * as orgsApi from '../api/orgs'
+import { getDocumentSignedUrl } from '../api/media'
 
 export default function OrgDrawer({ orgId, onClose, onChanged }) {
   const [org, setOrg] = useState(null)
@@ -13,6 +14,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   const [suspendOpen, setSuspendOpen] = useState(false)
   const [suspendReason, setSuspendReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const [viewingDocId, setViewingDocId] = useState(null)
 
   useEffect(() => {
     if (!orgId) return
@@ -87,6 +89,18 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     refreshDocs()
   }
 
+  async function handleViewDoc(doc) {
+    setViewingDocId(doc.orgDocumentId)
+    try {
+      const url = await getDocumentSignedUrl(doc.fileUrl)
+      if (url) window.open(url, '_blank', 'noreferrer')
+    } catch {
+      alert('Could not open this document. Please try again.')
+    } finally {
+      setViewingDocId(null)
+    }
+  }
+
   const status = org.statusCode
 
   return (
@@ -137,7 +151,9 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
             <div className="xs">{d.isVerified ? 'Verified' : 'Not verified'}</div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <a className="btn-o btn-sm" href={d.fileUrl} target="_blank" rel="noreferrer">View</a>
+            <button className="btn-o btn-sm" onClick={() => handleViewDoc(d)} disabled={viewingDocId === d.orgDocumentId}>
+              {viewingDocId === d.orgDocumentId ? 'Loading…' : 'View'}
+            </button>
             <button className="btn-o btn-sm" onClick={() => handleVerifyDoc(d)}>{d.isVerified ? 'Unverify' : 'Verify'}</button>
           </div>
         </div>
