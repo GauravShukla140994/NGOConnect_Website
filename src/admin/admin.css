@@ -1,0 +1,146 @@
+/* NGO Connect — Super Admin panel styles.
+   Ported near-verbatim from Documents/NGO_Connect_Admin_Prototype_v1.0.html.
+   Everything is scoped under .admin-root so it can never leak into the marketing
+   site's Tailwind styling. The .ms-* classes stay unscoped/global because the
+   multi-select dropdown panel is rendered via a React portal to document.body
+   (to sidestep the overflow-clipping bug hit during prototyping) and would
+   otherwise fall outside .admin-root's DOM subtree. CSS custom property names
+   below (--p, --bg, --tx, etc.) were checked against src/index.css and do not
+   collide with the marketing site's variables (--navy, --primary, --secondary,
+   --accent, --violet). */
+
+:root {
+  --p: #6b4eff;
+  --pl: #eef0ff;
+  --tl: #2ecc71;
+  --or: #ff8c42;
+  --rd: #ff4444;
+  --yw: #f59e0b;
+  --tx: #1a1a2e;
+  --t2: #666680;
+  --t3: #999bb0;
+  --bg: #f0f2f8;
+  --bd: #e8e8f0;
+  --cd: #ffffff;
+}
+
+.admin-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--tx);
+  min-height: 100vh;
+}
+.admin-root * {
+  box-sizing: border-box;
+}
+
+/* === TYPOGRAPHY === */
+.admin-root .h1 { font-size: 22px; font-weight: 700; }
+.admin-root .h2 { font-size: 17px; font-weight: 700; }
+.admin-root .h3 { font-size: 14px; font-weight: 600; }
+.admin-root .body { font-size: 13px; line-height: 1.6; }
+.admin-root .sm { font-size: 12px; color: var(--t2); }
+.admin-root .xs { font-size: 11px; color: var(--t3); }
+.admin-root .slab { font-size: 10px; font-weight: 700; color: var(--t2); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px; }
+.admin-root code { background: #F0F2F8; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+
+/* === LOGIN SCREEN === */
+.admin-root #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#1a1a2e,#2d2560); }
+.admin-root .login-card { background: var(--cd); border-radius: 20px; padding: 40px 36px; width: 380px; box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+.admin-root .login-logo { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg,#6B4EFF,#9B7BFF); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 20px; margin-bottom: 18px; }
+.admin-root .login-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.admin-root .login-sub { font-size: 12px; color: var(--t2); margin-bottom: 26px; }
+.admin-root .login-err { background: #FFF0F0; border: 1px solid #FECACA; color: var(--rd); font-size: 12px; padding: 9px 12px; border-radius: 10px; margin-bottom: 14px; }
+
+/* === FORM === */
+.admin-root .fl { margin-bottom: 16px; }
+.admin-root .fl label { font-size: 11px; font-weight: 600; color: var(--t2); display: block; margin-bottom: 6px; }
+.admin-root .fi { width: 100%; padding: 11px 13px; border: 1.5px solid var(--bd); border-radius: 10px; font-size: 13px; color: var(--tx); background: #F8F8FC; outline: none; font-family: inherit; }
+.admin-root .fi:focus { border-color: var(--p); }
+.admin-root .fs { padding: 9px 12px; border: 1.5px solid var(--bd); border-radius: 9px; font-size: 12px; color: var(--tx); background: #F8F8FC; outline: none; font-family: inherit; }
+.admin-root .fta { width: 100%; padding: 10px 13px; border: 1.5px solid var(--bd); border-radius: 10px; font-size: 13px; color: var(--tx); background: #F8F8FC; outline: none; resize: none; min-height: 70px; font-family: inherit; }
+
+/* === BUTTONS === */
+.admin-root .btn-p { background: var(--p); color: #fff; border: none; border-radius: 10px; padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; font-family: inherit; }
+.admin-root .btn-p:disabled { opacity: .6; cursor: not-allowed; }
+.admin-root .btn-o { background: transparent; border: 1.5px solid var(--bd); color: var(--t2); border-radius: 10px; padding: 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; }
+.admin-root .btn-tl { background: #E8F8F0; color: #16A34A; border: 1px solid #BBF7D0; border-radius: 10px; padding: 10px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.admin-root .btn-rd { background: #FFF0F0; color: var(--rd); border: 1px solid #FECACA; border-radius: 10px; padding: 10px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.admin-root .btn-yw { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; border-radius: 10px; padding: 10px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.admin-root .btn-tl:disabled, .admin-root .btn-rd:disabled, .admin-root .btn-yw:disabled { opacity: .6; cursor: not-allowed; }
+.admin-root .btn-sm { padding: 6px 12px; font-size: 11.5px; border-radius: 8px; }
+.admin-root .btn-link { background: none; border: none; color: var(--p); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; text-decoration: none; }
+
+/* === PILLS === */
+.admin-root .pill { display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 20px; font-size: 10.5px; font-weight: 700; gap: 4px; letter-spacing: .02em; white-space: nowrap; }
+.admin-root .pp { background: var(--pl); color: var(--p); }
+.admin-root .pg { background: #E8F8F0; color: #16A34A; }
+.admin-root .po { background: #FFF4EE; color: var(--or); }
+.admin-root .py { background: #FFFBEB; color: #B45309; }
+.admin-root .pr { background: #FFF0F0; color: var(--rd); }
+.admin-root .pgr { background: #F1EFE8; color: #5F5E5A; }
+.admin-root .pb { background: #EFF6FF; color: #2563EB; }
+
+/* === APP SHELL === */
+.admin-root #app { display: flex; min-height: 100vh; }
+.admin-root .sidebar { width: 230px; background: #1a1a2e; flex-shrink: 0; display: flex; flex-direction: column; padding: 20px 14px; }
+.admin-root .sb-logo { display: flex; align-items: center; gap: 10px; padding: 6px 8px 24px; }
+.admin-root .sb-logo .mark { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg,#6B4EFF,#9B7BFF); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 14px; }
+.admin-root .sb-logo .name { color: #fff; font-size: 14px; font-weight: 700; }
+.admin-root .sb-logo .tag { color: #9B7BFF; font-size: 9.5px; font-weight: 600; letter-spacing: .06em; }
+.admin-root .nav-item { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 10px; color: #B4B4CC; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 3px; text-decoration: none; }
+.admin-root .nav-item:hover { background: rgba(255,255,255,.05); }
+.admin-root .nav-item.on { background: var(--p); color: #fff; }
+.admin-root .nav-item .ic { width: 17px; text-align: center; }
+.admin-root .nav-item .badge { margin-left: auto; background: var(--rd); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; }
+.admin-root .sb-foot { margin-top: auto; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
+
+.admin-root .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.admin-root .topbar { background: var(--cd); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--bd); }
+.admin-root .topbar .h1 { font-size: 19px; }
+.admin-root .admin-chip { display: flex; align-items: center; gap: 9px; }
+.admin-root .av { width: 34px; height: 34px; border-radius: 50%; background: var(--p); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+.admin-root .content { padding: 24px 28px; flex: 1; overflow-y: auto; }
+
+/* === KPI === */
+.admin-root .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
+.admin-root .kpi { background: var(--cd); border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+.admin-root .kpi .n { font-size: 24px; font-weight: 700; margin: 4px 0 2px; }
+
+/* === CARD/TABLE === */
+.admin-root .card { background: var(--cd); border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); overflow: hidden; }
+.admin-root .card-head { padding: 16px 18px; border-bottom: 1px solid var(--bd); display: flex; align-items: center; justify-content: space-between; }
+.admin-root .tabs { display: flex; gap: 4px; padding: 12px 18px 0; }
+.admin-root .tab { padding: 9px 15px; font-size: 12.5px; font-weight: 600; color: var(--t2); cursor: pointer; border-bottom: 2px solid transparent; }
+.admin-root .tab.on { color: var(--p); border-bottom-color: var(--p); }
+.admin-root table { width: 100%; border-collapse: collapse; }
+.admin-root th { text-align: left; font-size: 10.5px; font-weight: 700; color: var(--t2); text-transform: uppercase; letter-spacing: .04em; padding: 11px 18px; border-bottom: 1px solid var(--bd); }
+.admin-root td { padding: 13px 18px; font-size: 13px; border-bottom: 1px solid var(--bd); vertical-align: middle; }
+.admin-root tr:last-child td { border-bottom: none; }
+.admin-root .org-row { display: flex; align-items: center; gap: 10px; }
+.admin-root .act-row { display: flex; gap: 6px; }
+.admin-root .lk-type-row { padding: 12px 18px; cursor: pointer; border-bottom: 1px solid var(--bd); }
+.admin-root .lk-type-row:last-child { border-bottom: none; }
+.admin-root .lk-type-row.on { background: var(--pl); }
+
+/* === MULTI-SELECT DROPDOWN (panel is portaled to document.body — keep global) === */
+.ms-dropdown { position: relative; }
+.ms-trigger { width: 220px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: var(--tx); }
+.ms-caret { color: var(--t2); font-size: 11px; margin-left: 8px; }
+.ms-panel { z-index: 150; background: var(--cd); border: 1px solid var(--bd); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.14); padding: 8px; max-height: 290px; overflow-y: auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.ms-search { width: 100%; padding: 8px 10px; border: 1.5px solid var(--bd); border-radius: 8px; font-size: 12.5px; color: var(--tx); background: #F8F8FC; outline: none; font-family: inherit; margin-bottom: 6px; }
+.ms-search:focus { border-color: var(--p); }
+.ms-option { display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 12.5px; color: var(--tx); }
+.ms-option:hover { background: #F8F8FC; }
+.ms-option input { accent-color: var(--p); width: 14px; height: 14px; flex-shrink: 0; }
+
+/* === DRAWER === */
+.admin-root .drawer-ov { position: fixed; inset: 0; background: rgba(20,20,35,.5); display: flex; align-items: stretch; justify-content: flex-end; z-index: 200; }
+.admin-root .drawer { width: 440px; background: var(--cd); height: 100%; overflow-y: auto; padding: 24px 24px 30px; }
+.admin-root .drawer-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+.admin-root .dr-close { cursor: pointer; color: var(--t2); font-size: 20px; background: none; border: none; }
+.admin-root .doc-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #F8F8FC; border: 1px solid var(--bd); border-radius: 10px; margin-bottom: 8px; }
+.admin-root .doc-ic { width: 30px; height: 30px; border-radius: 8px; background: var(--pl); color: var(--p); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.admin-root .divider { height: 1px; background: var(--bd); margin: 16px 0; }
+.admin-root .reject-box { display: none; margin-top: 12px; }
+.admin-root .reject-box.on { display: block; }
