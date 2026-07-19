@@ -1,8 +1,18 @@
+import { Link } from 'react-router-dom'
+
 const COLS = [
   ['Discover', ['Organizations', 'Communities', 'Events', 'Causes']],
   ['Company', ['About', 'Careers', 'Press', 'Contact']],
   ['Resources', ['Developers', 'Blog', 'Support', 'Status']],
-  ['Legal', ['Privacy', 'Terms', 'Security', 'Cookies']],
+  [
+    'Legal',
+    [
+      ['Privacy', '/privacy'],
+      ['Terms', '/terms'],
+      ['Security', '/security'],
+      ['Cookies', '/cookies'],
+    ],
+  ],
 ]
 
 export default function Footer() {
@@ -53,13 +63,22 @@ export default function Footer() {
                 {title}
               </p>
               <ul className="space-y-3.5">
-                {links.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="text-sm text-white/55 transition hover:text-white">
-                      {l}
-                    </a>
-                  </li>
-                ))}
+                {links.map((l) => {
+                  const [label, to] = Array.isArray(l) ? l : [l, null]
+                  return (
+                    <li key={label}>
+                      {to ? (
+                        <Link to={to} className="text-sm text-white/55 transition hover:text-white">
+                          {label}
+                        </Link>
+                      ) : (
+                        <a href="#" className="text-sm text-white/55 transition hover:text-white">
+                          {label}
+                        </a>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           ))}
