@@ -133,10 +133,16 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
         </span>
       </div>
 
-      <div className="slab">Founder &amp; contact</div>
+      <div className="slab">Founder</div>
       <div className="body" style={{ marginBottom: 16 }}>
-        Founder: <b>{org.founderName || '—'}</b><br />
+        <b>{org.founderName || '—'}</b><br />
         Email: {org.founderEmail || '—'} · Phone: {org.founderMobile || '—'}
+      </div>
+
+      <div className="slab">Organisation contact</div>
+      <div className="body" style={{ marginBottom: 16 }}>
+        Contact person: <b>{org.contactPerson || '—'}</b><br />
+        Email: {org.contactEmail || '—'} · Phone: {org.contactPhone || '—'}
       </div>
 
       <div className="slab">Address</div>
