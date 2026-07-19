@@ -123,6 +123,16 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
         <div><div className="xs">Registered on</div><div className="h3" style={{ fontSize: 13 }}>{org.submittedAt || '—'}</div></div>
       </div>
 
+      <div className="slab">Tax eligibility</div>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        <span className={`pill ${org.is80GEligible ? 'pg' : 'py'}`}>
+          80G {org.is80GEligible ? '✓ Yes' : '✗ No'}
+        </span>
+        <span className={`pill ${org.is12AEligible ? 'pg' : 'py'}`}>
+          12A {org.is12AEligible ? '✓ Yes' : '✗ No'}
+        </span>
+      </div>
+
       <div className="slab">Founder &amp; contact</div>
       <div className="body" style={{ marginBottom: 16 }}>
         Founder: <b>{org.founderName || '—'}</b><br />
