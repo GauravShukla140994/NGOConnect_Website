@@ -64,8 +64,8 @@ export default function SecurityPolicy() {
         <p>
           If you believe you have found a security vulnerability on the Platform, please report it
           to{' '}
-          <a href="mailto:security@ripplehub.app" className="text-blue-300 underline underline-offset-2">
-            security@ripplehub.app
+          <a href="mailto:contact@ripplehub.app" className="text-blue-300 underline underline-offset-2">
+            contact@ripplehub.app
           </a>{' '}
           with enough detail for us to reproduce the issue. Please report privately and give us a
           reasonable opportunity to investigate and address the issue before any public disclosure.

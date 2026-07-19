@@ -74,8 +74,8 @@ export default function CookiePolicy() {
       <Section title="7. Contact us">
         <p>
           Questions about this policy can be sent to{' '}
-          <a href="mailto:privacy@ripplehub.app" className="text-blue-300 underline underline-offset-2">
-            privacy@ripplehub.app
+          <a href="mailto:contact@ripplehub.app" className="text-blue-300 underline underline-offset-2">
+            contact@ripplehub.app
           </a>
           .
         </p>

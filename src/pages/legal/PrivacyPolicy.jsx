@@ -135,8 +135,8 @@ export default function PrivacyPolicy() {
         />
         <p>
           To exercise any of these rights, contact us at{' '}
-          <a href="mailto:privacy@ripplehub.app" className="text-blue-300 underline underline-offset-2">
-            privacy@ripplehub.app
+          <a href="mailto:contact@ripplehub.app" className="text-blue-300 underline underline-offset-2">
+            contact@ripplehub.app
           </a>
           . We may need to verify your identity before acting on a request.
         </p>
@@ -189,8 +189,8 @@ export default function PrivacyPolicy() {
       <Section title="12. Contact us">
         <p>
           Questions about this policy or your data can be sent to{' '}
-          <a href="mailto:privacy@ripplehub.app" className="text-blue-300 underline underline-offset-2">
-            privacy@ripplehub.app
+          <a href="mailto:contact@ripplehub.app" className="text-blue-300 underline underline-offset-2">
+            contact@ripplehub.app
           </a>
           .
         </p>

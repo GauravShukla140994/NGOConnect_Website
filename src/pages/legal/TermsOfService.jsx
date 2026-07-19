@@ -175,8 +175,8 @@ export default function TermsOfService() {
       <Section title="16. Contact us">
         <p>
           Questions about these Terms can be sent to{' '}
-          <a href="mailto:legal@ripplehub.app" className="text-blue-300 underline underline-offset-2">
-            legal@ripplehub.app
+          <a href="mailto:contact@ripplehub.app" className="text-blue-300 underline underline-offset-2">
+            contact@ripplehub.app
           </a>
           .
         </p>

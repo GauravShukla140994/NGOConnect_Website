@@ -60,7 +60,7 @@ export default function AdminLayout() {
           <div className="sb-logo">
             <div className="mark">NC</div>
             <div>
-              <div className="name">NGO Connect</div>
+              <div className="name">RippleHub</div>
               <div className="tag">SUPER ADMIN</div>
             </div>
           </div>

@@ -70,7 +70,7 @@ export default function Organizations() {
           >
             <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
             <p className="mb-8 text-sm font-semibold uppercase tracking-[0.25em] text-blue-300">
-              With Platform Name
+              With RippleHub
             </p>
             <motion.ul variants={listStagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="space-y-5">
               {WITH.map((t) => (

@@ -30,7 +30,7 @@ export default function LoginPage() {
         <form className="login-card" onSubmit={handleSubmit}>
           <div className="login-logo">NC</div>
           <div className="login-title">Super Admin</div>
-          <div className="login-sub">Internal access only — NGO Connect platform team</div>
+          <div className="login-sub">Internal access only — RippleHub platform team</div>
           {error && <div className="login-err">{error}</div>}
           <div className="fl">
             <label>Username</label>

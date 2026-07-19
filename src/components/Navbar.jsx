@@ -33,7 +33,7 @@ export default function Navbar({ visible }) {
             <span className="absolute inset-0 rounded-full bg-primary/40 blur-md" />
             <span className="relative h-3 w-3 rounded-full bg-blue-300 shadow-[0_0_12px_#60a5fa]" />
           </span>
-          Platform Name
+          RippleHub
         </a>
 
         <ul className="hidden items-center gap-8 text-sm text-white/70 lg:flex">
