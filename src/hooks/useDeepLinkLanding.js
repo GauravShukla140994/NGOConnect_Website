@@ -5,8 +5,19 @@ import { APP_SCHEME_PREFIX, APP_STORE_URL, PLAY_STORE_URL, DEEP_LINK_TIMEOUT_MS 
 // public preview from the API, then attempt to open the app via custom scheme,
 // falling back to the app/play store if nothing opened it.
 //
-// apiPath     — path appended to VITE_API_BASE_URL, e.g. `/org/${orgId}/public`
-// deepLinkPath — path appended to the app scheme, e.g. `ngo/${orgId}`
+// apiPath      — path appended to VITE_API_BASE_URL, e.g. `/public/org/${token}`
+// deepLinkPath — path appended to the app scheme, e.g. `ngo/${token}`
+//
+// /ngo and /opportunity now take an opaque encrypted share token (not a raw
+// numeric ID) — see PublicController.cs on the API side. A bad/tampered/expired
+// token comes back as { isSuccess: 0, errorCode: "INVALID_SHARE_TOKEN", message }.
+function friendlyError(errorCode, message) {
+  if (errorCode === 'INVALID_SHARE_TOKEN') {
+    return 'This link is no longer valid. Ask the sender for a new share link.'
+  }
+  return message || 'This link is no longer valid.'
+}
+
 export function useDeepLinkLanding({ apiPath, deepLinkPath }) {
   const [status, setStatus] = useState('loading') // loading | ready | error
   const [data, setData] = useState(null)
@@ -27,7 +38,7 @@ export function useDeepLinkLanding({ apiPath, deepLinkPath }) {
           setData(json.data)
           setStatus('ready')
         } else {
-          setError(json.message || 'This link is no longer valid.')
+          setError(friendlyError(json.errorCode, json.message))
           setStatus('error')
         }
       })

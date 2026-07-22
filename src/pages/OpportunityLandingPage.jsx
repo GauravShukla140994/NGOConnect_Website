@@ -4,11 +4,13 @@ import DeepLinkCard from '../components/deeplink/DeepLinkCard.jsx'
 import { initials } from '../utils/initials.js'
 
 export default function OpportunityLandingPage() {
-  const { projectId } = useParams()
-  const { status, data: project, error, storeUrl, openApp } = useDeepLinkLanding({
-    apiPath: `/project/${projectId}`,
-    deepLinkPath: `opportunity/${projectId}`,
+  const { token } = useParams()
+  const { status, data, error, storeUrl, openApp } = useDeepLinkLanding({
+    apiPath: `/public/opportunity/${encodeURIComponent(token)}`,
+    deepLinkPath: `opportunity/${encodeURIComponent(token)}`,
   })
+  // PublicController wraps the preview: { projectId, project: {...} }
+  const project = data?.project
 
   return (
     <DeepLinkCard

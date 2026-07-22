@@ -32,8 +32,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/press" element={<Press />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/invite/:token" element={<InvitePage />} />
-        <Route path="/ngo/:orgId" element={<NgoLandingPage />} />
-        <Route path="/opportunity/:projectId" element={<OpportunityLandingPage />} />
+        <Route path="/ngo/:token" element={<NgoLandingPage />} />
+        <Route path="/opportunity/:token" element={<OpportunityLandingPage />} />
         <Route path="/*" element={<App />} />
       </Routes>
     </BrowserRouter>

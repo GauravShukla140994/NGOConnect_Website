@@ -17,24 +17,50 @@ ID, scheme correction, etc.) only needs updating in one place:
   error / ready states); each page only supplies its own ready-state content.
 - `src/utils/initials.js` — shared logo-fallback initials helper.
 
+## Encrypted share tokens (added 2026-07-22)
+
+`/ngo` and `/opportunity` no longer take a raw numeric ID in the URL — they take
+an opaque, encrypted share token instead (46-char URL-safe Base64, AES-256-GCM,
+produced by `IUrlTokenService` on the API side). This was a deliberate security
+change on the backend (raw org/project IDs were enumerable and exposed on a
+no-auth public endpoint); the website just needs to treat the route param as an
+opaque string and hit the new endpoints.
+
+- Route params renamed: `/ngo/:token` (was `/ngo/:orgId`),
+  `/opportunity/:token` (was `/opportunity/:projectId`). `/invite/:token` was
+  already token-based (`OrgInvitations.InviteToken`) and is unaffected.
+- New no-auth endpoints, `NGOConnect.API/Controllers/PublicController.cs`:
+  - `GET /api/v1/public/org/{token}` → `{ isSuccess, data: { orgId, profile: {...} } }`
+    — `profile` has the same fields as the old `/org/{orgId}/public` response
+    (`orgName`, `logoUrl`, `city`, `aboutShort`, `verificationStatusCode`, `memberCount`).
+  - `GET /api/v1/public/opportunity/{token}` → `{ isSuccess, data: { projectId, project: {...} } }`
+    — `project` has the same fields as the old `/project/{projectId}` response
+    (`projectName`, `orgName`, `orgLogo`, `city`, `scheduleType`, `scheduleTypeCode`).
+  - **Note the extra nesting** — responses are wrapped one level deeper than the
+    old direct endpoints (`data.profile.orgName`, not `data.orgName`). Both
+    landing pages unwrap this (`data?.profile` / `data?.project`) before passing
+    fields to `DeepLinkCard`.
+  - A bad/tampered/expired/wrong-entity-type token returns
+    `{ isSuccess: 0, errorCode: "INVALID_SHARE_TOKEN" | "WRONG_ENTITY_TYPE", message }`.
+    `useDeepLinkLanding.js` maps `INVALID_SHARE_TOKEN` specifically to
+    "This link is no longer valid. Ask the sender for a new share link." — other
+    error codes fall back to the API's own `message`.
+  - There's also `GET /api/v1/public/resolve/{token}` → `{ entityType, entityId }`,
+    a lightweight resolver meant for the mobile app (not used by this website).
+- The old direct endpoints (`GET /org/{orgId}/public`, `GET /project/{projectId}`)
+  still exist and are still used elsewhere (e.g. authenticated admin/app views) —
+  they just aren't called by these public landing pages anymore.
+
 ## Done (this repo)
 
 - `src/pages/InvitePage.jsx` — `/invite/:token`. Fetches
   `GET {VITE_API_BASE_URL}/org/invite/verify/{token}` (confirmed live endpoint,
   confirmed response fields: `orgName`, `orgLogo`, `orgCity`, `invitedByName`,
   `orgAbout`, `statusCode`, `inviteType`, `tokenExpiry`, `message`, `errorCode`).
-- `src/pages/NgoLandingPage.jsx` — `/ngo/:orgId`. Fetches
-  `GET {VITE_API_BASE_URL}/org/{orgId}/public` (confirmed live, public, no auth
-  — `OrgController.cs` comment literally says "used by website deep link landing
-  page"). Confirmed response fields: `orgId`, `orgName`, `logoUrl`, `city`,
-  `aboutShort`, `verificationStatusCode`, `memberCount`.
-- `src/pages/OpportunityLandingPage.jsx` — `/opportunity/:projectId`. Fetches
-  `GET {VITE_API_BASE_URL}/project/{projectId}` (confirmed live, public, no auth
-  — no `[Authorize]` on the controller or the action). Confirmed response fields
-  include `projectName` (not `title` — matches the existing `Projects` table
-  naming rule in this project's CLAUDE.md), `orgName`, `orgLogo`, `city`,
-  `scheduleType`, `scheduleTypeCode`, plus many project-detail fields not used
-  on this landing page.
+- `src/pages/NgoLandingPage.jsx` — `/ngo/:token`. Fetches
+  `GET {VITE_API_BASE_URL}/public/org/{token}`, reads `data.profile.*`.
+- `src/pages/OpportunityLandingPage.jsx` — `/opportunity/:token`. Fetches
+  `GET {VITE_API_BASE_URL}/public/opportunity/{token}`, reads `data.project.*`.
 - All three attempt a custom-scheme deep link on load, fall back to the store
   after 2.5s if the tab is still in the foreground (i.e. nothing opened it).
 - `public/.well-known/apple-app-site-association` — `appID` bundle-id portion

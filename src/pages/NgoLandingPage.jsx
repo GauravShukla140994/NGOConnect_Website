@@ -4,11 +4,13 @@ import DeepLinkCard from '../components/deeplink/DeepLinkCard.jsx'
 import { initials } from '../utils/initials.js'
 
 export default function NgoLandingPage() {
-  const { orgId } = useParams()
-  const { status, data: org, error, storeUrl, openApp } = useDeepLinkLanding({
-    apiPath: `/org/${orgId}/public`,
-    deepLinkPath: `ngo/${orgId}`,
+  const { token } = useParams()
+  const { status, data, error, storeUrl, openApp } = useDeepLinkLanding({
+    apiPath: `/public/org/${encodeURIComponent(token)}`,
+    deepLinkPath: `ngo/${encodeURIComponent(token)}`,
   })
+  // PublicController wraps the preview: { orgId, profile: {...} }
+  const org = data?.profile
 
   return (
     <DeepLinkCard
