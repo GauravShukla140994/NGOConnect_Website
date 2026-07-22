@@ -12,6 +12,9 @@ import About from './pages/company/About.jsx'
 import Careers from './pages/company/Careers.jsx'
 import Press from './pages/company/Press.jsx'
 import Contact from './pages/company/Contact.jsx'
+import InvitePage from './pages/InvitePage.jsx'
+import NgoLandingPage from './pages/NgoLandingPage.jsx'
+import OpportunityLandingPage from './pages/OpportunityLandingPage.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -28,6 +31,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/careers" element={<Careers />} />
         <Route path="/press" element={<Press />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/invite/:token" element={<InvitePage />} />
+        <Route path="/ngo/:orgId" element={<NgoLandingPage />} />
+        <Route path="/opportunity/:projectId" element={<OpportunityLandingPage />} />
         <Route path="/*" element={<App />} />
       </Routes>
     </BrowserRouter>

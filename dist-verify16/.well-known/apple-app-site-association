@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "REPLACE_WITH_TEAMID.app.ripplehub",
+        "paths": ["/invite/*", "/ngo/*", "/opportunity/*"]
+      }
+    ]
+  }
+}
