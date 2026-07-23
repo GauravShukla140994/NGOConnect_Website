@@ -11,6 +11,14 @@ const PILL_MAP = {
   UNREVIEWED: { cls: 'pgr', label: 'Not reviewed' },
   NOT_REVIEWED: { cls: 'pgr', label: 'Not reviewed' },
   NEEDS_UPDATE: { cls: 'pr', label: 'Needs update' },
+  // Marketing & Communication Center — MKTG_CAMPAIGN_STATUS codes (additive, no collisions with the above)
+  DRAFT: { cls: 'pgr', label: 'Draft' },
+  SCHEDULED: { cls: 'pb', label: 'Scheduled' },
+  RUNNING: { cls: 'po', label: 'Running' },
+  COMPLETED: { cls: 'pg', label: 'Completed' },
+  CANCELLED: { cls: 'pgr', label: 'Cancelled' },
+  FAILED: { cls: 'pr', label: 'Failed' },
+  PAUSED: { cls: 'py', label: 'Paused' },
 }
 
 export default function StatusPill({ status, label }) {

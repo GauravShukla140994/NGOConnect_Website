@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/admin/overview', icon: '◻', label: 'Overview' },
   { to: '/admin/orgs', icon: '🏢', label: 'Organisations', badge: true },
   { to: '/admin/members', icon: '👥', label: 'Members' },
+  { to: '/admin/communication', icon: '📣', label: 'Communication Center' },
   { to: '/admin/settings', icon: '⚙', label: 'Settings' },
   { to: '/admin/lookup', icon: '📋', label: 'Lookup management' },
 ]
@@ -17,6 +18,17 @@ const TITLE_MAP = {
   members: 'Members',
   settings: 'Settings',
   lookup: 'Lookup management',
+}
+
+// Communication Center has nested routes (campaigns list / new / detail) that
+// the flat TITLE_MAP above can't express — resolved separately.
+function communicationTitle(segments) {
+  const [, , sub, id] = segments // ['admin','communication', sub?, id?]
+  if (!sub) return 'Communication Center'
+  if (sub === 'campaigns' && id === 'new') return 'Create campaign'
+  if (sub === 'campaigns' && id) return 'Campaign detail'
+  if (sub === 'campaigns') return 'Campaigns'
+  return 'Communication Center'
 }
 
 export default function AdminLayout() {
@@ -42,8 +54,8 @@ export default function AdminLayout() {
     navigate('/admin/login', { replace: true })
   }
 
-  const seg = location.pathname.split('/').filter(Boolean).pop()
-  const title = TITLE_MAP[seg] || 'Admin'
+  const segments = location.pathname.split('/').filter(Boolean)
+  const title = segments[1] === 'communication' ? communicationTitle(segments) : (TITLE_MAP[segments.at(-1)] || 'Admin')
 
   const initials = (user?.fullName || 'Super Admin')
     .trim()
