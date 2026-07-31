@@ -28,7 +28,7 @@ export default function LoginPage() {
     <div className="admin-root">
       <div id="loginScreen">
         <form className="login-card" onSubmit={handleSubmit}>
-          <div className="login-logo">NC</div>
+          <img src="/icon-192.png" alt="" className="login-logo" />
           <div className="login-title">Super Admin</div>
           <div className="login-sub">Internal access only — RippleHub platform team</div>
           {error && <div className="login-err">{error}</div>}

@@ -29,10 +29,7 @@ export default function Navbar({ visible }) {
     >
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6">
         <a href="#top" className="flex items-center gap-2.5 font-display text-lg font-bold">
-          <span className="relative flex h-8 w-8 items-center justify-center">
-            <span className="absolute inset-0 rounded-full bg-primary/40 blur-md" />
-            <span className="relative h-3 w-3 rounded-full bg-blue-300 shadow-[0_0_12px_#60a5fa]" />
-          </span>
+          <img src="/icon-192.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
           RippleHub
         </a>
 

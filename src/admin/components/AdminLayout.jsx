@@ -70,7 +70,7 @@ export default function AdminLayout() {
       <div id="app">
         <div className="sidebar">
           <div className="sb-logo">
-            <div className="mark">NC</div>
+            <img src="/icon-192.png" alt="" className="mark" />
             <div>
               <div className="name">RippleHub</div>
               <div className="tag">SUPER ADMIN</div>
