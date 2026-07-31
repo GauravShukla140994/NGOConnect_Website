@@ -6,10 +6,7 @@ export default function DeepLinkCard({ status, error, errorTitle = 'Link not ava
     <div className="grain flex min-h-screen items-center justify-center bg-navy px-5">
       <div className="glass w-full max-w-sm rounded-3xl p-8 text-center">
         <a href="/" className="mb-6 inline-flex items-center gap-2.5 font-display text-base font-bold text-white">
-          <span className="relative flex h-7 w-7 items-center justify-center">
-            <span className="absolute inset-0 rounded-full bg-primary/40 blur-md" />
-            <span className="relative h-2.5 w-2.5 rounded-full bg-blue-300 shadow-[0_0_12px_#60a5fa]" />
-          </span>
+          <img src="/icon-192.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
           RippleHub
         </a>
 
