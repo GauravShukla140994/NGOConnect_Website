@@ -11,6 +11,7 @@ import LookupManagementPage from './pages/LookupManagementPage'
 import CommunicationDashboardPage from './pages/communication/CommunicationDashboardPage'
 import CampaignsPage from './pages/communication/CampaignsPage'
 import CampaignWizardPage from './pages/communication/CampaignWizardPage'
+import CampaignRecipientsPage from './pages/communication/CampaignRecipientsPage'
 import './admin.css'
 
 export default function AdminApp() {
@@ -28,6 +29,7 @@ export default function AdminApp() {
             <Route path="communication/dashboard" element={<CommunicationDashboardPage />} />
             <Route path="communication/campaigns" element={<CampaignsPage />} />
             <Route path="communication/campaigns/:campaignId" element={<CampaignWizardPage />} />
+            <Route path="communication/campaigns/:campaignId/recipients" element={<CampaignRecipientsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="lookup" element={<LookupManagementPage />} />
           </Route>

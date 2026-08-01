@@ -429,11 +429,15 @@ function CampaignReadOnlyView({ campaignId, statusCode, campaignName }) {
     <div className="card">
       <div className="card-head">
         <div className="h3">{campaignName} <StatusPill status={statusCode} /></div>
-        <button className="btn-o btn-sm" onClick={() => navigate('/admin/communication/campaigns')}>Back to list</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-o btn-sm" onClick={() => navigate(`/admin/communication/campaigns/${campaignId}/recipients`)}>View recipients</button>
+          <button className="btn-o btn-sm" onClick={() => navigate('/admin/communication/campaigns')}>Back to list</button>
+        </div>
       </div>
       <div style={{ padding: 18 }} className="xs">
         This campaign is {statusCode?.toLowerCase()} and can no longer be edited — only Draft or Scheduled
-        campaigns are editable. Delivery stats for this campaign are visible on the Campaigns list.
+        campaigns are editable. Aggregate delivery stats are on the Campaigns list; use "View recipients" above
+        for the per-person breakdown (who it was sent/delivered/failed to).
       </div>
     </div>
   )

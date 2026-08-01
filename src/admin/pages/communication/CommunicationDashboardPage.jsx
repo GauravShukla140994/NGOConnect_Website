@@ -50,14 +50,22 @@ export default function CommunicationDashboardPage() {
       <div className="kpi-grid">
         <div className="kpi"><div className="sm">Push sent</div><div className="n">{stats.totalPushSent ?? 0}</div></div>
         <div className="kpi"><div className="sm">Email sent</div><div className="n">{stats.totalEmailSent ?? 0}</div></div>
-        <div className="kpi"><div className="sm">Delivered</div><div className="n" style={{ color: 'var(--tl)' }}>{stats.totalDelivered ?? 0}</div></div>
-        <div className="kpi"><div className="sm">Failed</div><div className="n" style={{ color: 'var(--rd)' }}>{stats.totalFailed ?? 0}</div></div>
+        <div className="kpi" title="Accepted by Firebase/the mail server — not proof the device or inbox actually received it.">
+          <div className="sm">Sent (accepted)</div><div className="n">{stats.totalSent ?? 0}</div>
+        </div>
+        <div className="kpi" title="Device-confirmed — the app itself acknowledged rendering the notification. This is the honest 'arrived' number.">
+          <div className="sm">Delivered (confirmed)</div><div className="n" style={{ color: 'var(--tl)' }}>{stats.totalDelivered ?? 0}</div>
+        </div>
       </div>
 
       <div className="kpi-grid">
-        <div className="kpi"><div className="sm">Delivery rate</div><div className="n">{deliveryRate != null ? `${deliveryRate}%` : '—'}</div></div>
+        <div className="kpi"><div className="sm">Failed</div><div className="n" style={{ color: 'var(--rd)' }}>{stats.totalFailed ?? 0}</div></div>
+        <div className="kpi" title="Confirmed delivered ÷ total attempted"><div className="sm">Delivery rate</div><div className="n">{deliveryRate != null ? `${deliveryRate}%` : '—'}</div></div>
         <div className="kpi"><div className="sm">Open rate</div><div className="n">{openRate != null ? `${openRate}%` : '—'}</div></div>
         <div className="kpi"><div className="sm">Click rate</div><div className="n">{clickRate != null ? `${clickRate}%` : '—'}</div></div>
+      </div>
+
+      <div className="kpi-grid">
         <div className="kpi">
           <div className="sm">Campaigns</div>
           <div className="n" style={{ fontSize: 16, display: 'flex', gap: 10, marginTop: 4 }}>

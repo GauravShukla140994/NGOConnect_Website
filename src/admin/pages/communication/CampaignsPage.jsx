@@ -1,12 +1,26 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import StatusPill from '../../components/StatusPill'
-import { getCampaigns, sendCampaignNow, cancelCampaign } from '../../api/communication'
+import {
+  getCampaigns, sendCampaignNow, cancelCampaign, getCampaign,
+  createCampaign, saveCampaignChannel, saveCampaignAudience,
+} from '../../api/communication'
 
 // Doubles as the campaign history view — Campaign_GetList already returns the
-// delivered/opened/clicked/failed rollups per campaign, so there's no separate
-// "history" page in Phase 1. A dedicated History tab is Phase 3 (per-recipient
-// drill-down via Campaign_GetHistoryDetail) — not built yet.
+// sent/delivered/opened/clicked/failed rollups per campaign, so there's no
+// separate "history" page in Phase 1. Per-recipient drill-down lives at
+// CampaignRecipientsPage (Campaign_GetRecipientList).
+//
+// "Sent" = accepted by FCM/mail server. "Delivered" = device-confirmed via
+// CampaignRecipient_AckDelivered — the two used to be conflated (both counted
+// under the old single "Delivered" column), which is why campaigns could show
+// "delivered" while the end user never actually saw the notification.
+
+function parseMaybeJson(v, fallback) {
+  if (v == null) return fallback
+  if (typeof v === 'object') return v
+  try { return JSON.parse(v) } catch { return fallback }
+}
 const TABS = [
   { key: '', label: 'All' },
   { key: 'DRAFT', label: 'Draft' },
@@ -69,6 +83,48 @@ export default function CampaignsPage() {
     }
   }
 
+  // Duplicate — fetch the source campaign's full detail, create a fresh DRAFT
+  // with the same name/type/priority/channels/audience rule, then drop the
+  // admin into the wizard to review before sending. Pure frontend: no new
+  // backend endpoint, just replays the same create/channel/audience calls the
+  // wizard itself makes.
+  async function handleDuplicate(campaignId) {
+    setBusyId(campaignId)
+    try {
+      const src = await getCampaign(campaignId)
+      if (!src) return
+      const newId = await createCampaign({
+        campaignName: `${src.campaignName} (Copy)`,
+        internalNotes: src.internalNotes || '',
+        campaignTypeCode: src.campaignTypeCode || 'PROMOTION',
+        priorityCode: src.priorityCode || 'NORMAL',
+      })
+
+      const channels = parseMaybeJson(src.channelsJson, [])
+      const pushCh = channels.find((ch) => ch.channelCode === 'PUSH')
+      const emailCh = channels.find((ch) => ch.channelCode === 'EMAIL')
+      if (pushCh) {
+        await saveCampaignChannel(newId, {
+          channelCode: 'PUSH', pushTitle: pushCh.pushTitle || '', pushBody: pushCh.pushBody || '',
+          pushImageUrl: pushCh.pushImageUrl || null, pushDeepLink: pushCh.pushDeepLink || null, pushActionLabel: pushCh.pushActionLabel || null,
+        })
+      }
+      if (emailCh) {
+        await saveCampaignChannel(newId, { channelCode: 'EMAIL', emailSubject: emailCh.emailSubject || '', emailHtmlBody: emailCh.emailHtmlBody || '' })
+      }
+
+      const ruleType = src.audienceRuleType || 'ALL'
+      const ruleValue = parseMaybeJson(src.audienceRuleValueJson, {})
+      await saveCampaignAudience(newId, ruleType, ruleValue).catch(() => {})
+
+      navigate(`/admin/communication/campaigns/${newId}`)
+    } catch (e) {
+      window.alert(e.response?.data?.message || 'Could not duplicate this campaign.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   return (
@@ -105,7 +161,10 @@ export default function CampaignsPage() {
           <tbody>
             <tr>
               <th>Campaign</th><th>Type</th><th>Channels</th><th>Status</th>
-              <th>Recipients</th><th>Delivered</th><th>Failed</th><th>Created</th><th>Action</th>
+              <th>Recipients</th>
+              <th title="Accepted by FCM/mail server">Sent</th>
+              <th title="Device-confirmed via app acknowledgment">Delivered</th>
+              <th>Failed</th><th>Created</th><th>Action</th>
             </tr>
             {rows.map((c) => (
               <tr key={c.campaignId}>
@@ -116,6 +175,7 @@ export default function CampaignsPage() {
                 <td className="sm">{c.channels || '—'}</td>
                 <td><StatusPill status={c.statusCode} label={c.statusName} /></td>
                 <td className="sm">{c.totalRecipients ?? c.estimatedRecipients ?? '—'}</td>
+                <td className="sm">{c.sentCount ?? '—'}</td>
                 <td className="sm">{c.deliveredCount ?? '—'}</td>
                 <td className="sm">{c.failedCount ?? '—'}</td>
                 <td className="sm">{c.createdAt}</td>
@@ -127,11 +187,17 @@ export default function CampaignsPage() {
                     {['DRAFT', 'SCHEDULED', 'PAUSED'].includes(c.statusCode) && (
                       <button className="btn-rd btn-sm" disabled={busyId === c.campaignId} onClick={() => handleCancel(c.campaignId)}>Cancel</button>
                     )}
+                    {(c.totalRecipients ?? 0) > 0 && (
+                      <button className="btn-o btn-sm" onClick={() => navigate(`/admin/communication/campaigns/${c.campaignId}/recipients`)}>Recipients</button>
+                    )}
+                    {['COMPLETED', 'CANCELLED', 'FAILED'].includes(c.statusCode) && (
+                      <button className="btn-o btn-sm" disabled={busyId === c.campaignId} onClick={() => handleDuplicate(c.campaignId)}>Duplicate</button>
+                    )}
                   </div>
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={9} className="xs" style={{ padding: 18 }}>No campaigns in this tab.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={10} className="xs" style={{ padding: 18 }}>No campaigns in this tab.</td></tr>}
           </tbody>
         </table>
       )}

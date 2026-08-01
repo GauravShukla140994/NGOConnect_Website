@@ -96,3 +96,12 @@ export async function getCampaignHistory(campaignId) {
   const res = await client.get(`/superadmin/campaigns/${campaignId}/history`)
   return res.data?.data
 }
+
+// ── Per-recipient drill-down ─────────────────────────────────
+// statusCode: QUEUED | PROCESSING | SENT | DELIVERED | FAILED | SKIPPED_OPTOUT | SKIPPED_NO_ADDRESS
+export async function getCampaignRecipients(campaignId, { statusCode, pageNumber = 1, pageSize = 20 } = {}) {
+  const res = await client.get(`/superadmin/campaigns/${campaignId}/recipients`, {
+    params: { statusCode: statusCode || undefined, pageNumber, pageSize },
+  })
+  return res.data?.data ?? { items: [], totalCount: 0, pageNumber, pageSize }
+}
