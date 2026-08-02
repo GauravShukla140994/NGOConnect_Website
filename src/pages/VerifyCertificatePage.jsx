@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+// Imported as a raw string and injected via iframe srcDoc — NOT fetched as a
+// separate URL (`src="/certificate-template.html"`). That approach broke on the
+// live host: whatever's serving stage.ripplehub.app rewrites unmatched-looking
+// paths back to index.html (SPA fallback), so the iframe ended up loading the
+// full marketing site instead of the template, even though the file genuinely
+// exists in dist/. srcDoc sidesteps routing entirely — no HTTP request, no
+// rewrite rule can intercept it.
+import certificateTemplateHtml from '../assets/certificate-template.html?raw'
 
 // Public certificate verification page — /verify/{token}. No login, no app
 // redirect (unlike the other /invite, /ngo, /opportunity landing pages) since
@@ -144,18 +152,18 @@ export default function VerifyCertificatePage() {
     <div className="min-h-screen bg-[#F1F5F9]">
       {/* Header */}
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center gap-2.5 px-5 py-4">
-          <a href="/" className="flex items-center gap-2.5">
-            <img src="/icon-192.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
-            <span className="font-display text-base font-bold text-slate-900">RippleHub</span>
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-2.5 gap-y-1.5 px-4 py-3 sm:px-5 sm:py-4">
+          <a href="/" className="flex items-center gap-2 sm:gap-2.5">
+            <img src="/icon-192.png" alt="" width={28} height={28} className="h-6 w-6 rounded-lg sm:h-7 sm:w-7" />
+            <span className="font-display text-sm font-bold text-slate-900 sm:text-base">RippleHub</span>
           </a>
-          <span className="ml-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500 sm:ml-1 sm:text-xs">
             Certificate Verification
           </span>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-10">
         {status === 'loading' && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <img src="/icon-192.png" alt="" width={48} height={48} className="mb-4 h-12 w-12 rounded-xl" />
@@ -165,7 +173,7 @@ export default function VerifyCertificatePage() {
         )}
 
         {status === 'notfound' && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center sm:p-10">
             <div className="mb-3 text-5xl">⚠️</div>
             <h1 className="text-lg font-bold text-slate-900">Certificate Not Found</h1>
             <p className="mt-2 text-sm text-slate-500">
@@ -181,7 +189,7 @@ export default function VerifyCertificatePage() {
         )}
 
         {status === 'revoked' && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center sm:p-10">
             <div className="mb-3 text-5xl">🚫</div>
             <h1 className="text-lg font-bold text-slate-900">Certificate Revoked</h1>
             <p className="mt-2 text-sm text-slate-500">
@@ -193,7 +201,7 @@ export default function VerifyCertificatePage() {
         )}
 
         {status === 'error' && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center sm:p-10">
             <div className="mb-3 text-5xl">🔌</div>
             <h1 className="text-lg font-bold text-slate-900">Could Not Connect</h1>
             <p className="mt-2 text-sm text-slate-500">
@@ -206,21 +214,21 @@ export default function VerifyCertificatePage() {
           <>
             <iframe
               ref={iframeRef}
-              src="/certificate-template.html"
+              srcDoc={certificateTemplateHtml}
               title="Volunteer Certificate"
               onLoad={handleIframeLoad}
-              style={{ width: '100%', height: iframeHeight, border: 'none', display: 'block' }}
+              style={{ width: '100%', height: iframeHeight, border: 'none', display: 'block', maxWidth: '100%' }}
             />
 
             {/* Trust badge strip */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-xs font-medium text-slate-500">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-[11px] font-medium text-slate-500 sm:gap-x-5 sm:px-5 sm:text-xs">
               <span>✅ Issued by RippleHub</span>
               <span>🏛 {cert.orgName}</span>
               <span>📅 Verified {formatIssuedDate(cert.issuedAt)}</span>
             </div>
 
             <div className="mt-6 text-center">
-              <button onClick={handlePrint} className="btn-primary">
+              <button onClick={handlePrint} className="btn-primary w-full sm:w-auto">
                 🖨 Download / Print
               </button>
             </div>
