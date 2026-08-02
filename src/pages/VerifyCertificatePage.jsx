@@ -76,12 +76,24 @@ function mapToTemplateData(api) {
   }
 }
 
+// Desktop-only: below this width, users already expect to scroll (that's normal
+// mobile UX) and shrinking the certificate to avoid it would make the text
+// illegible instead. Matches the sm: breakpoint used throughout this page.
+const FIT_TO_VIEW_MIN_WIDTH = 768
+// Never shrink past this — below it the certificate becomes hard to read, and
+// scrolling on a very short viewport (e.g. a small laptop with a tall browser
+// chrome) is a reasonable fallback at that point.
+const MIN_SCALE = 0.55
+
 export default function VerifyCertificatePage() {
   const { token } = useParams()
   const [status, setStatus] = useState('loading') // loading | valid | revoked | notfound | error
   const [cert, setCert] = useState(null)
   const [iframeHeight, setIframeHeight] = useState(900)
+  const [scale, setScale] = useState(1)
   const iframeRef = useRef(null)
+  const headerRef = useRef(null)
+  const contentRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -134,6 +146,35 @@ export default function VerifyCertificatePage() {
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
+  // Desktop "fit to view" — shrink the certificate + trust strip + button as one
+  // unit so the whole thing (buttons included) is visible without scrolling, the
+  // way a print-preview thumbnail works. Reads contentRef's natural (untransformed)
+  // scrollHeight — CSS transform: scale() doesn't affect layout/scrollHeight, only
+  // paint, so this is safe to recompute even while a previous scale is applied.
+  useEffect(() => {
+    function recomputeScale() {
+      if (window.innerWidth < FIT_TO_VIEW_MIN_WIDTH || !contentRef.current) {
+        setScale(1)
+        return
+      }
+      const naturalHeight = contentRef.current.scrollHeight
+      const headerHeight = headerRef.current?.getBoundingClientRect().height ?? 0
+      const verticalBreathingRoom = 48 // top + bottom padding around the content block
+      const available = window.innerHeight - headerHeight - verticalBreathingRoom
+      if (naturalHeight <= 0 || available <= 0) {
+        setScale(1)
+        return
+      }
+      setScale(Math.max(MIN_SCALE, Math.min(1, available / naturalHeight)))
+    }
+
+    recomputeScale()
+    window.addEventListener('resize', recomputeScale)
+    return () => window.removeEventListener('resize', recomputeScale)
+    // Recompute whenever the certificate's real rendered height changes (cert-height
+    // postMessage) or we switch into the valid/error/etc. states.
+  }, [iframeHeight, status])
+
   function handleIframeLoad() {
     const win = iframeRef.current?.contentWindow
     if (!win || !cert) return
@@ -151,7 +192,7 @@ export default function VerifyCertificatePage() {
   return (
     <div className="min-h-screen bg-[#F1F5F9]">
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
+      <header ref={headerRef} className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-2.5 gap-y-1.5 px-4 py-3 sm:px-5 sm:py-4">
           <a href="/" className="flex items-center gap-2 sm:gap-2.5">
             <img src="/icon-192.png" alt="" width={28} height={28} className="h-6 w-6 rounded-lg sm:h-7 sm:w-7" />
@@ -211,28 +252,33 @@ export default function VerifyCertificatePage() {
         )}
 
         {status === 'valid' && cert && (
-          <>
-            <iframe
-              ref={iframeRef}
-              srcDoc={certificateTemplateHtml}
-              title="Volunteer Certificate"
-              onLoad={handleIframeLoad}
-              style={{ width: '100%', height: iframeHeight, border: 'none', display: 'block', maxWidth: '100%' }}
-            />
+          // Outer wrapper collapses to the SCALED height so nothing below (footer)
+          // leaves a blank gap equal to the un-scaled size. Inner wrapper is the
+          // thing actually transformed — scale(1) on mobile/short content is a no-op.
+          <div style={{ height: scale < 1 ? contentRef.current?.scrollHeight * scale : undefined }}>
+            <div ref={contentRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+              <iframe
+                ref={iframeRef}
+                srcDoc={certificateTemplateHtml}
+                title="Volunteer Certificate"
+                onLoad={handleIframeLoad}
+                style={{ width: '100%', height: iframeHeight, border: 'none', display: 'block', maxWidth: '100%' }}
+              />
 
-            {/* Trust badge strip */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-[11px] font-medium text-slate-500 sm:gap-x-5 sm:px-5 sm:text-xs">
-              <span>✅ Issued by RippleHub</span>
-              <span>🏛 {cert.orgName}</span>
-              <span>📅 Verified {formatIssuedDate(cert.issuedAt)}</span>
-            </div>
+              {/* Trust badge strip */}
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-[11px] font-medium text-slate-500 sm:gap-x-5 sm:px-5 sm:text-xs">
+                <span>✅ Issued by RippleHub</span>
+                <span>🏛 {cert.orgName}</span>
+                <span>📅 Verified {formatIssuedDate(cert.issuedAt)}</span>
+              </div>
 
-            <div className="mt-6 text-center">
-              <button onClick={handlePrint} className="btn-primary w-full sm:w-auto">
-                🖨 Download / Print
-              </button>
+              <div className="mt-6 text-center">
+                <button onClick={handlePrint} className="btn-primary w-full sm:w-auto">
+                  🖨 Download / Print
+                </button>
+              </div>
             </div>
-          </>
+          </div>
         )}
       </main>
 
