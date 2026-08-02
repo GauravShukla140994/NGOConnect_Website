@@ -73,6 +73,9 @@ function mapToTemplateData(api) {
     // back to a generic label, so that's the only value this can ever be.
     coordinatorName: 'NGO Coordinator',
     skills: parseSkillRatings(api.skillRatings),
+    // The encrypted public verify link (CertificateDal.AttachVerifyLink) — the
+    // template's "Verify at" footer link uses THIS, never certificateId/certCode.
+    verifyUrl: api.verifyUrl,
   }
 }
 
@@ -80,10 +83,11 @@ function mapToTemplateData(api) {
 // mobile UX) and shrinking the certificate to avoid it would make the text
 // illegible instead. Matches the sm: breakpoint used throughout this page.
 const FIT_TO_VIEW_MIN_WIDTH = 768
-// Never shrink past this — below it the certificate becomes hard to read, and
-// scrolling on a very short viewport (e.g. a small laptop with a tall browser
-// chrome) is a reasonable fallback at that point.
-const MIN_SCALE = 0.55
+// Never shrink past this — below it the certificate starts looking like a
+// tiny thumbnail rather than a document. On shorter viewports this means a
+// small amount of scrolling may still be needed to see the button below the
+// certificate — that trade-off is intentional: legibility over zero-scroll.
+const MIN_SCALE = 0.82
 
 export default function VerifyCertificatePage() {
   const { token } = useParams()
