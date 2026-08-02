@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-// Public certificate verification page — /verify/{certCode}. No login, no app
+// Public certificate verification page — /verify/{token}. No login, no app
 // redirect (unlike the other /invite, /ngo, /opportunity landing pages) since
 // anyone (employer, donor, NGO) needs to be able to open this cold, in any
 // browser, and see the certificate immediately.
 // Spec: NGOConnectAPI/Documents/ripplehub_verify_page_spec.md
-// Backend: GET /api/v1/certificates/{certCode} — CertificateController.GetCertificate,
-// [AllowAnonymous], already deployed (no backend work needed for this page).
+//
+// IMPORTANT: `token` is an AES-256-GCM encrypted payload (CertificateDal.AttachVerifyLink,
+// same IUrlTokenService mechanism as /ngo and /opportunity), NOT the raw CertCode.
+// The original spec/first build of this page used the plain CertCode directly in the
+// URL — that was a real vulnerability: CertCode is CERT-2026-000001-style, a bare
+// incrementing counter, so anyone could enumerate every certificate on the platform
+// (name, photo, org, hours) just by walking the number. Fixed by routing through
+// GET /api/v1/certificates/verify/{token} (CertificateController.GetCertificateByToken,
+// [AllowAnonymous]) instead of the old GET /api/v1/certificates/{certCode} (now
+// auth-required — see CertificateController.GetCertificate).
 
 const SUPPORT_EMAIL = 'support@ripplehub.app'
 
@@ -61,7 +69,7 @@ function mapToTemplateData(api) {
 }
 
 export default function VerifyCertificatePage() {
-  const { certCode } = useParams()
+  const { token } = useParams()
   const [status, setStatus] = useState('loading') // loading | valid | revoked | notfound | error
   const [cert, setCert] = useState(null)
   const [iframeHeight, setIframeHeight] = useState(900)
@@ -71,7 +79,7 @@ export default function VerifyCertificatePage() {
     let cancelled = false
     setStatus('loading')
 
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/certificates/${encodeURIComponent(certCode)}`)
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/certificates/verify/${encodeURIComponent(token)}`)
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return
@@ -89,7 +97,7 @@ export default function VerifyCertificatePage() {
     return () => {
       cancelled = true
     }
-  }, [certCode])
+  }, [token])
 
   // Client-side OG/title update — helps the browser tab and any crawler that
   // executes JS, but this is a plain SPA (no SSR), so it won't reach crawlers
@@ -161,7 +169,7 @@ export default function VerifyCertificatePage() {
             <div className="mb-3 text-5xl">⚠️</div>
             <h1 className="text-lg font-bold text-slate-900">Certificate Not Found</h1>
             <p className="mt-2 text-sm text-slate-500">
-              The certificate ID &ldquo;{certCode}&rdquo; does not exist in our records.
+              This verification link is invalid, has expired, or the certificate does not exist in our records.
               <br />
               If you believe this is an error, contact{' '}
               <a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-primary underline">
@@ -179,7 +187,7 @@ export default function VerifyCertificatePage() {
             <p className="mt-2 text-sm text-slate-500">
               This certificate has been revoked by the issuing organisation.
               <br />
-              Certificate ID: <span className="font-medium text-slate-700">{certCode}</span>
+              Certificate ID: <span className="font-medium text-slate-700">{cert?.certCode ?? '—'}</span>
             </p>
           </div>
         )}

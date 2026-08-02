@@ -35,7 +35,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/invite/:token" element={<InvitePage />} />
         <Route path="/ngo/:token" element={<NgoLandingPage />} />
         <Route path="/opportunity/:token" element={<OpportunityLandingPage />} />
-        <Route path="/verify/:certCode" element={<VerifyCertificatePage />} />
+        <Route path="/verify/:token" element={<VerifyCertificatePage />} />
         <Route path="/*" element={<App />} />
       </Routes>
     </BrowserRouter>
