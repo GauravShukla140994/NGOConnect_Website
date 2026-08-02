@@ -484,8 +484,25 @@
   // Tell the parent window our real rendered height so the iframe isn't a fixed
   // guessed size — body content height can vary (long project names, 2-line
   // descriptions, etc.).
+  //
+  // NOTE: deliberately NOT document.body.scrollHeight. body has `min-height:
+  // 100vh`, and inside an iframe 100vh == the iframe's own current CSS height —
+  // so scrollHeight can only ever grow to match whatever height the parent last
+  // set, never shrink below it (a one-way ratchet). That left a permanent gap
+  // between the certificate and the buttons below it whenever the real content
+  // was shorter than the iframe's initial 900px default. Measuring the
+  // `.certificate` card itself (plus the body's own padding) reports the true
+  // content height regardless of the iframe's current size.
   function reportHeight() {
-    window.parent.postMessage({ type: 'cert-height', height: document.body.scrollHeight }, '*');
+    const certEl = document.querySelector('.certificate');
+    if (!certEl) {
+      window.parent.postMessage({ type: 'cert-height', height: document.body.scrollHeight }, '*');
+      return;
+    }
+    const bodyStyle = getComputedStyle(document.body);
+    const verticalPadding = (parseFloat(bodyStyle.paddingTop) || 0) + (parseFloat(bodyStyle.paddingBottom) || 0);
+    const height = Math.ceil(certEl.getBoundingClientRect().height + verticalPadding);
+    window.parent.postMessage({ type: 'cert-height', height }, '*');
   }
   window.__reportCertHeight = reportHeight;
 </script>
