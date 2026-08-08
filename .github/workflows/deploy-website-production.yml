@@ -23,8 +23,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          REACT_APP_API_URL: https://api.ripplehub.app
-          CI: false  # Prevents warnings from being treated as errors
+          VITE_API_BASE_URL: https://api.ripplehub.app/api/v1
 
       - name: Clear old build on VPS
         uses: appleboy/ssh-action@v1
@@ -42,7 +41,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: userclaudesession
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "./build/*"
+          source: "./dist/*"
           target: "/var/www/ripplehub-web"
 
       - name: Reload Nginx
