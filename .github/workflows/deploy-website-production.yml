@@ -25,7 +25,7 @@ jobs:
         env:
           VITE_API_BASE_URL: "https://api.ripplehub.app/api/v1"
 
-     	- name: Clear old build on VPS
+      - name: Clear old build on VPS
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -55,6 +55,4 @@ jobs:
           request_pty: true
           script: |
             sudo nginx -t && sudo systemctl reload nginx
-            echo "✅ Website deployed at $(date)"
-
-	
+            echo "Website deployed at $(date)"
