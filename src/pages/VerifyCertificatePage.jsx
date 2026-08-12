@@ -82,7 +82,7 @@ export default function VerifyCertificatePage() {
 
   // The returned HTML is rendered via srcDoc, which (unlike a cross-origin
   // src="") keeps the iframe's document same-origin with this page — so we
-  // can read its real content height directly on load instead of needing the
+  // can read its real content height directly instead of needing the
   // certificate HTML to carry its own height-reporting script (it doesn't;
   // it's a static, fully server-rendered document now, no client JS at all).
   //
@@ -90,24 +90,45 @@ export default function VerifyCertificatePage() {
   // `min-height:100vh` (it's a flex container that centers the .cert card),
   // and inside an iframe 100vh == the iframe's own current CSS height — so
   // scrollHeight can only ever grow to match whatever height we last set,
-  // never shrink below it (the exact same one-way-ratchet bug fixed earlier
-  // in the old client-rendered template, just relocated into the new
-  // server-rendered one). Measuring the `.cert` card itself — which doesn't
+  // never shrink below it. Measuring the `.cert` card itself — which doesn't
   // have min-height:100vh, only its centering body wrapper does — gives the
   // true content height regardless of the iframe's current size.
+  //
+  // A single measurement taken at `onLoad` still left a gap in practice —
+  // most likely layout settling slightly after `load` fires (web fonts,
+  // sub-pixel rounding). Rather than keep guessing at a one-shot timing fix,
+  // a ResizeObserver on the `.cert` element re-measures continuously and
+  // self-corrects whenever the real box size changes, with no more assumptions
+  // about exactly when the layout is "done".
+  const resizeObserverRef = useRef(null)
+
+  function measureAndSetHeight(doc) {
+    const certEl = doc.querySelector('.cert')
+    const target = certEl ?? doc.body
+    if (!target) return
+    let extra = 0
+    if (certEl) {
+      const bodyStyle = doc.defaultView?.getComputedStyle(doc.body)
+      extra = (parseFloat(bodyStyle?.paddingTop) || 0) + (parseFloat(bodyStyle?.paddingBottom) || 0)
+    }
+    setIframeHeight(Math.ceil(target.getBoundingClientRect().height + extra) + 8)
+  }
+
   function handleIframeLoad() {
     const doc = iframeRef.current?.contentDocument
     if (!doc) return
-    const certEl = doc.querySelector('.cert')
-    if (certEl) {
-      const bodyStyle = doc.defaultView?.getComputedStyle(doc.body)
-      const paddingTop = parseFloat(bodyStyle?.paddingTop) || 0
-      const paddingBottom = parseFloat(bodyStyle?.paddingBottom) || 0
-      setIframeHeight(Math.ceil(certEl.getBoundingClientRect().height + paddingTop + paddingBottom) + 40)
-    } else if (doc.body) {
-      setIframeHeight(doc.body.scrollHeight + 40)
+    measureAndSetHeight(doc)
+
+    resizeObserverRef.current?.disconnect()
+    const target = doc.querySelector('.cert') ?? doc.body
+    if (target && 'ResizeObserver' in window) {
+      const ro = new ResizeObserver(() => measureAndSetHeight(doc))
+      ro.observe(target)
+      resizeObserverRef.current = ro
     }
   }
+
+  useEffect(() => () => resizeObserverRef.current?.disconnect(), [])
 
   // Desktop "fit to view" — shrink the certificate + button as one unit so the
   // whole thing is visible without scrolling, the way a print-preview
