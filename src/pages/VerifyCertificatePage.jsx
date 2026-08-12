@@ -45,6 +45,7 @@ export default function VerifyCertificatePage() {
   const [certHtml, setCertHtml] = useState('')
   const [iframeHeight, setIframeHeight] = useState(900)
   const [scale, setScale] = useState(1)
+  const [wrapperHeight, setWrapperHeight] = useState(undefined)
   const iframeRef = useRef(null)
   const headerRef = useRef(null)
   const contentRef = useRef(null)
@@ -113,10 +114,22 @@ export default function VerifyCertificatePage() {
   // thumbnail works. Reads contentRef's natural (untransformed) scrollHeight —
   // CSS transform: scale() doesn't affect layout/scrollHeight, only paint, so
   // this is safe to recompute even while a previous scale is applied.
+  //
+  // wrapperHeight is computed HERE, inside the effect, alongside scale — not
+  // read from contentRef.current.scrollHeight directly in JSX during render.
+  // That earlier version read the ref synchronously in the render body, which
+  // in React reflects the DOM as of the *previous* commit, not the one about
+  // to be painted — a one-render-behind stale read. Whenever iframeHeight or
+  // scale changed, the outer wrapper's collapsed height briefly (or
+  // persistently, on some render paths) used the old scrollHeight, leaving a
+  // visible gap between the certificate and the button/footer below it.
+  // Storing the value in state, set only after the DOM has actually settled,
+  // removes that gap entirely.
   useEffect(() => {
     function recomputeScale() {
       if (window.innerWidth < FIT_TO_VIEW_MIN_WIDTH || !contentRef.current) {
         setScale(1)
+        setWrapperHeight(undefined)
         return
       }
       const naturalHeight = contentRef.current.scrollHeight
@@ -125,9 +138,12 @@ export default function VerifyCertificatePage() {
       const available = window.innerHeight - headerHeight - verticalBreathingRoom
       if (naturalHeight <= 0 || available <= 0) {
         setScale(1)
+        setWrapperHeight(undefined)
         return
       }
-      setScale(Math.max(MIN_SCALE, Math.min(1, available / naturalHeight)))
+      const s = Math.max(MIN_SCALE, Math.min(1, available / naturalHeight))
+      setScale(s)
+      setWrapperHeight(s < 1 ? Math.ceil(naturalHeight * s) : undefined)
     }
 
     recomputeScale()
@@ -154,7 +170,7 @@ export default function VerifyCertificatePage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-10">
+      <main className="mx-auto max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
         {status === 'loading' && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <img src="/icon-192.png" alt="" width={48} height={48} className="mb-4 h-12 w-12 rounded-xl" />
@@ -198,10 +214,12 @@ export default function VerifyCertificatePage() {
         )}
 
         {status === 'valid' && certHtml && (
-          // Outer wrapper collapses to the SCALED height so nothing below (footer)
-          // leaves a blank gap equal to the un-scaled size. Inner wrapper is the
-          // thing actually transformed — scale(1) on mobile/short content is a no-op.
-          <div style={{ height: scale < 1 ? contentRef.current?.scrollHeight * scale : undefined }}>
+          // Outer wrapper collapses to the SCALED height (from state, computed
+          // alongside `scale` itself — see the effect above) so nothing below
+          // (footer) leaves a blank gap equal to the un-scaled size. Inner
+          // wrapper is the thing actually transformed — scale(1) on
+          // mobile/short content is a no-op (wrapperHeight is undefined then).
+          <div style={{ height: wrapperHeight }}>
             <div ref={contentRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
               <iframe
                 ref={iframeRef}
