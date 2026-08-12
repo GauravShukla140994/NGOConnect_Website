@@ -1,98 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-// Imported as a raw string and injected via iframe srcDoc — NOT fetched as a
-// separate URL (`src="/certificate-template.html"`). That approach broke on the
-// live host: whatever's serving stage.ripplehub.app rewrites unmatched-looking
-// paths back to index.html (SPA fallback), so the iframe ended up loading the
-// full marketing site instead of the template, even though the file genuinely
-// exists in dist/. srcDoc sidesteps routing entirely — no HTTP request, no
-// rewrite rule can intercept it.
-import certificateTemplateHtml from '../assets/certificate-template.html?raw'
 
 // Public certificate verification page — /verify/{token}. No login, no app
 // redirect (unlike the other /invite, /ngo, /opportunity landing pages) since
 // anyone (employer, donor, NGO) needs to be able to open this cold, in any
 // browser, and see the certificate immediately.
-// Spec: NGOConnectAPI/Documents/ripplehub_verify_page_spec.md
 //
-// IMPORTANT: `token` is an AES-256-GCM encrypted payload (CertificateDal.AttachVerifyLink,
-// same IUrlTokenService mechanism as /ngo and /opportunity), NOT the raw CertCode.
-// The original spec/first build of this page used the plain CertCode directly in the
-// URL — that was a real vulnerability: CertCode is CERT-2026-000001-style, a bare
-// incrementing counter, so anyone could enumerate every certificate on the platform
-// (name, photo, org, hours) just by walking the number. Fixed by routing through
-// GET /api/v1/certificates/verify/{token} (CertificateController.GetCertificateByToken,
-// [AllowAnonymous]) instead of the old GET /api/v1/certificates/{certCode} (now
-// auth-required — see CertificateController.GetCertificate).
+// Certificate rendering was centralized to the API side — the backend now
+// returns a fully-rendered HTML string (CertificateHtmlService, server-side
+// {{PLACEHOLDER}} substitution into NGOConnect.API/Templates/CertificateTemplate.html)
+// instead of this page fetching structured JSON and building the certificate
+// itself from a local template file. This page's job is now just: fetch the
+// HTML, render it in an iframe, done. No template file, no client-side
+// data-mapping, no QR code library — the returned HTML already contains a
+// QR image from api.qrserver.com.
+//
+// IMPORTANT: `token` is the same AES-256-GCM encrypted payload as before
+// (CertificateDal.AttachVerifyLink, IUrlTokenService, entityType "CERT") —
+// URL structure is unchanged, only what the API returns at this route changed.
+//
+// NOTE — trade-off from this change: because the website no longer receives
+// structured certificate data (volunteerName, orgName, issuedAt, etc.), the
+// per-certificate browser-tab title / OG title+description personalization
+// that the old JSON-based version did (document.title = "{name} — Volunteer
+// Certificate | RippleHub") is no longer possible from here without re-parsing
+// the returned HTML. Left as the page's static default title — flagging this
+// as a known regression, not an oversight, in case it matters for link
+// previews later.
 
 const SUPPORT_EMAIL = 'support@ripplehub.app'
-
-// "Communication:4.5|Leadership:4.0|Teamwork:5.0" → [{ name, rating }]
-function parseSkillRatings(raw) {
-  return (raw ?? '')
-    .split('|')
-    .filter(Boolean)
-    .map((pair) => {
-      const [name, rating] = pair.split(':')
-      return { name, rating: parseFloat(rating) }
-    })
-    .filter((s) => s.name && !Number.isNaN(s.rating))
-}
-
-function formatIssuedDate(iso) {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-  } catch {
-    return iso
-  }
-}
-
-function formatCompletionMonth(iso) {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
-  } catch {
-    return iso
-  }
-}
-
-// Maps the API's field names to the template's renderCertificate(data) shape —
-// the two were designed independently (see the spec's Data Mapping table).
-function mapToTemplateData(api) {
-  return {
-    certificateId: api.certCode,
-    issueDate: formatIssuedDate(api.issuedAt),
-    ngoName: api.orgName,
-    volunteerName: api.volunteerName,
-    projectName: api.projectName,
-    hoursContributed: `${api.totalHours ?? 0} hrs`,
-    completionDate: formatCompletionMonth(api.issuedAt),
-    impactScore: `+${api.impactScore ?? 0} pts`,
-    // API has no coordinator name field — spec's own mapping table says to fall
-    // back to a generic label, so that's the only value this can ever be.
-    coordinatorName: 'NGO Coordinator',
-    skills: parseSkillRatings(api.skillRatings),
-    // The encrypted public verify link (CertificateDal.AttachVerifyLink) — the
-    // template's "Verify at" footer link uses THIS, never certificateId/certCode.
-    verifyUrl: api.verifyUrl,
-  }
-}
 
 // Desktop-only: below this width, users already expect to scroll (that's normal
 // mobile UX) and shrinking the certificate to avoid it would make the text
 // illegible instead. Matches the sm: breakpoint used throughout this page.
 const FIT_TO_VIEW_MIN_WIDTH = 768
 // Never shrink past this — below it the certificate starts looking like a
-// tiny thumbnail rather than a document. On shorter viewports this means a
-// small amount of scrolling may still be needed to see the button below the
-// certificate — that trade-off is intentional: legibility over zero-scroll.
+// tiny thumbnail rather than a document.
 const MIN_SCALE = 0.82
 
 export default function VerifyCertificatePage() {
   const { token } = useParams()
   const [status, setStatus] = useState('loading') // loading | valid | revoked | notfound | error
-  const [cert, setCert] = useState(null)
+  const [message, setMessage] = useState('')
+  const [certHtml, setCertHtml] = useState('')
   const [iframeHeight, setIframeHeight] = useState(900)
   const [scale, setScale] = useState(1)
   const iframeRef = useRef(null)
@@ -103,14 +53,20 @@ export default function VerifyCertificatePage() {
     let cancelled = false
     setStatus('loading')
 
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/certificates/verify/${encodeURIComponent(token)}`)
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/certificates/verify/${encodeURIComponent(token)}/html`)
       .then((r) => r.json())
       .then((json) => {
         if (cancelled) return
         if (json.isSuccess === 1 && json.data) {
-          setCert(json.data)
-          setStatus(json.data.isDeleted ? 'revoked' : 'valid')
+          setCertHtml(json.data)
+          setStatus('valid')
+        } else if (json.errorCode === 'CERT_REVOKED') {
+          setMessage(json.message || 'This certificate has been revoked.')
+          setStatus('revoked')
         } else {
+          // Covers NOT_FOUND and anything else — same generic
+          // "don't leak whether something exists" posture as the API.
+          setMessage(json.message || '')
           setStatus('notfound')
         }
       })
@@ -123,38 +79,22 @@ export default function VerifyCertificatePage() {
     }
   }, [token])
 
-  // Client-side OG/title update — helps the browser tab and any crawler that
-  // executes JS, but this is a plain SPA (no SSR), so it won't reach crawlers
-  // that only read the initial HTML (WhatsApp/Facebook link previews will still
-  // show the generic site preview). Same limitation the other landing pages have.
-  useEffect(() => {
-    if (status !== 'valid' || !cert) return
-    document.title = `${cert.volunteerName} — Volunteer Certificate | RippleHub`
-    const setMeta = (selector, value) => {
-      const el = document.querySelector(selector)
-      if (el) el.setAttribute('content', value)
-    }
-    setMeta('meta[property="og:title"]', `${cert.volunteerName} — Volunteer Certificate`)
-    setMeta('meta[property="og:description"]', `Issued by ${cert.orgName} via RippleHub for ${cert.projectName}`)
-  }, [status, cert])
+  // The returned HTML is rendered via srcDoc, which (unlike a cross-origin
+  // src="") keeps the iframe's document same-origin with this page — so we
+  // can read its real content height directly on load instead of needing the
+  // certificate HTML to carry its own height-reporting script (it doesn't;
+  // it's a static, fully server-rendered document now, no client JS at all).
+  function handleIframeLoad() {
+    const doc = iframeRef.current?.contentDocument
+    const h = doc?.body?.scrollHeight
+    if (h) setIframeHeight(h + 40)
+  }
 
-  // Listen for the iframe's real content height (see certificate-template.html)
-  // instead of guessing a fixed height that clips or leaves dead space.
-  useEffect(() => {
-    function onMessage(e) {
-      if (e.data?.type === 'cert-height' && typeof e.data.height === 'number') {
-        setIframeHeight(e.data.height + 40)
-      }
-    }
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [])
-
-  // Desktop "fit to view" — shrink the certificate + trust strip + button as one
-  // unit so the whole thing (buttons included) is visible without scrolling, the
-  // way a print-preview thumbnail works. Reads contentRef's natural (untransformed)
-  // scrollHeight — CSS transform: scale() doesn't affect layout/scrollHeight, only
-  // paint, so this is safe to recompute even while a previous scale is applied.
+  // Desktop "fit to view" — shrink the certificate + button as one unit so the
+  // whole thing is visible without scrolling, the way a print-preview
+  // thumbnail works. Reads contentRef's natural (untransformed) scrollHeight —
+  // CSS transform: scale() doesn't affect layout/scrollHeight, only paint, so
+  // this is safe to recompute even while a previous scale is applied.
   useEffect(() => {
     function recomputeScale() {
       if (window.innerWidth < FIT_TO_VIEW_MIN_WIDTH || !contentRef.current) {
@@ -175,19 +115,7 @@ export default function VerifyCertificatePage() {
     recomputeScale()
     window.addEventListener('resize', recomputeScale)
     return () => window.removeEventListener('resize', recomputeScale)
-    // Recompute whenever the certificate's real rendered height changes (cert-height
-    // postMessage) or we switch into the valid/error/etc. states.
   }, [iframeHeight, status])
-
-  function handleIframeLoad() {
-    const win = iframeRef.current?.contentWindow
-    if (!win || !cert) return
-    win.renderCertificate(mapToTemplateData(cert))
-    win.__reportCertHeight?.()
-    // Re-report after a tick — web fonts / layout can still settle after the
-    // initial synchronous render call above.
-    setTimeout(() => win.__reportCertHeight?.(), 300)
-  }
 
   function handlePrint() {
     iframeRef.current?.contentWindow?.print()
@@ -237,11 +165,7 @@ export default function VerifyCertificatePage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center sm:p-10">
             <div className="mb-3 text-5xl">🚫</div>
             <h1 className="text-lg font-bold text-slate-900">Certificate Revoked</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              This certificate has been revoked by the issuing organisation.
-              <br />
-              Certificate ID: <span className="font-medium text-slate-700">{cert?.certCode ?? '—'}</span>
-            </p>
+            <p className="mt-2 text-sm text-slate-500">{message || 'This certificate has been revoked by the issuing organisation.'}</p>
           </div>
         )}
 
@@ -255,7 +179,7 @@ export default function VerifyCertificatePage() {
           </div>
         )}
 
-        {status === 'valid' && cert && (
+        {status === 'valid' && certHtml && (
           // Outer wrapper collapses to the SCALED height so nothing below (footer)
           // leaves a blank gap equal to the un-scaled size. Inner wrapper is the
           // thing actually transformed — scale(1) on mobile/short content is a no-op.
@@ -263,18 +187,11 @@ export default function VerifyCertificatePage() {
             <div ref={contentRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
               <iframe
                 ref={iframeRef}
-                srcDoc={certificateTemplateHtml}
+                srcDoc={certHtml}
                 title="Volunteer Certificate"
                 onLoad={handleIframeLoad}
-                style={{ width: '100%', height: iframeHeight, border: 'none', display: 'block', maxWidth: '100%' }}
+                style={{ width: '100%', height: iframeHeight, minHeight: '100vh', border: 'none', display: 'block', maxWidth: '100%' }}
               />
-
-              {/* Trust badge strip */}
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-[11px] font-medium text-slate-500 sm:gap-x-5 sm:px-5 sm:text-xs">
-                <span>✅ Issued by RippleHub</span>
-                <span>🏛 {cert.orgName}</span>
-                <span>📅 Verified {formatIssuedDate(cert.issuedAt)}</span>
-              </div>
 
               <div className="mt-6 text-center">
                 <button onClick={handlePrint} className="btn-primary w-full sm:w-auto">
