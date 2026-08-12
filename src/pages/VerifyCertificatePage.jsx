@@ -84,10 +84,28 @@ export default function VerifyCertificatePage() {
   // can read its real content height directly on load instead of needing the
   // certificate HTML to carry its own height-reporting script (it doesn't;
   // it's a static, fully server-rendered document now, no client JS at all).
+  //
+  // NOTE: deliberately NOT doc.body.scrollHeight. The template's body CSS has
+  // `min-height:100vh` (it's a flex container that centers the .cert card),
+  // and inside an iframe 100vh == the iframe's own current CSS height — so
+  // scrollHeight can only ever grow to match whatever height we last set,
+  // never shrink below it (the exact same one-way-ratchet bug fixed earlier
+  // in the old client-rendered template, just relocated into the new
+  // server-rendered one). Measuring the `.cert` card itself — which doesn't
+  // have min-height:100vh, only its centering body wrapper does — gives the
+  // true content height regardless of the iframe's current size.
   function handleIframeLoad() {
     const doc = iframeRef.current?.contentDocument
-    const h = doc?.body?.scrollHeight
-    if (h) setIframeHeight(h + 40)
+    if (!doc) return
+    const certEl = doc.querySelector('.cert')
+    if (certEl) {
+      const bodyStyle = doc.defaultView?.getComputedStyle(doc.body)
+      const paddingTop = parseFloat(bodyStyle?.paddingTop) || 0
+      const paddingBottom = parseFloat(bodyStyle?.paddingBottom) || 0
+      setIframeHeight(Math.ceil(certEl.getBoundingClientRect().height + paddingTop + paddingBottom) + 40)
+    } else if (doc.body) {
+      setIframeHeight(doc.body.scrollHeight + 40)
+    }
   }
 
   // Desktop "fit to view" — shrink the certificate + button as one unit so the
