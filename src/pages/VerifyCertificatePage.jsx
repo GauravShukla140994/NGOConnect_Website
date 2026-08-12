@@ -190,7 +190,7 @@ export default function VerifyCertificatePage() {
                 srcDoc={certHtml}
                 title="Volunteer Certificate"
                 onLoad={handleIframeLoad}
-                style={{ width: '100%', height: iframeHeight, minHeight: '100vh', border: 'none', display: 'block', maxWidth: '100%' }}
+                style={{ width: '100%', height: iframeHeight, border: 'none', display: 'block', maxWidth: '100%' }}
               />
 
               <div className="mt-6 text-center">
