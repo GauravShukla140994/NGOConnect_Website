@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { jsPDF } from 'jspdf'
+import html2canvas from 'html2canvas'
 
 // Public certificate verification page — /verify/{token}. No login, no app
 // redirect (unlike the other /invite, /ngo, /opportunity landing pages) since
@@ -14,6 +16,11 @@ import { useParams } from 'react-router-dom'
 // HTML, render it in an iframe, done. No template file, no client-side
 // data-mapping, no QR code library — the returned HTML already contains a
 // QR image from api.qrserver.com.
+//
+// Download button renders the `.cert` card to a PDF client-side (html2canvas
+// + jsPDF) rather than relying on the browser's print-to-PDF dialog — gives a
+// consistent, properly-named, properly-sized PDF regardless of the visitor's
+// browser/OS print settings.
 //
 // IMPORTANT: `token` is the same AES-256-GCM encrypted payload as before
 // (CertificateDal.AttachVerifyLink, IUrlTokenService, entityType "CERT") —
@@ -46,6 +53,7 @@ export default function VerifyCertificatePage() {
   const [iframeHeight, setIframeHeight] = useState(900)
   const [scale, setScale] = useState(1)
   const [wrapperHeight, setWrapperHeight] = useState(undefined)
+  const [downloading, setDownloading] = useState(false)
   const iframeRef = useRef(null)
   const headerRef = useRef(null)
   const contentRef = useRef(null)
@@ -172,8 +180,56 @@ export default function VerifyCertificatePage() {
     return () => window.removeEventListener('resize', recomputeScale)
   }, [iframeHeight, status])
 
-  function handlePrint() {
-    iframeRef.current?.contentWindow?.print()
+  // "www.ripplehub.app/verify/..." → strip out anything unsafe for a filename
+  function sanitizeForFilename(s) {
+    return (s || '')
+      .trim()
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+  }
+
+  // Renders the `.cert` card (not the whole iframe body — that would include
+  // the flex-centering padding around it) to a high-res canvas via html2canvas,
+  // then drops that image straight into a jsPDF page sized to match exactly —
+  // no wasted margins, no browser print-dialog inconsistencies (page size,
+  // headers/footers, scaling) across OS/browser combos. Filename is pulled
+  // straight out of the rendered certificate DOM (certificate ID + volunteer
+  // name) rather than a generic default, since we don't have that as
+  // structured data anymore after switching to the server-rendered HTML.
+  async function handleDownloadPdf() {
+    const doc = iframeRef.current?.contentDocument
+    const certEl = doc?.querySelector('.cert')
+    if (!certEl) return
+
+    setDownloading(true)
+    try {
+      const canvas = await html2canvas(certEl, {
+        scale: 3,          // high-res render — keeps text/logo crisp, not pixelated
+        useCORS: true,     // needed to pull in the QR code image from api.qrserver.com
+        backgroundColor: '#fffefa', // matches .cert's own background — avoids any
+                                     // transparent area rendering black in the PDF
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height],
+      })
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
+
+      const certId = sanitizeForFilename(doc.querySelector('.cid')?.textContent)
+      const volunteerName = sanitizeForFilename(doc.querySelector('.recipient')?.textContent)
+      const filename = ['RippleHub-Certificate', certId, volunteerName].filter(Boolean).join('-') + '.pdf'
+
+      pdf.save(filename)
+    } catch (err) {
+      console.error('Certificate PDF generation failed:', err)
+      alert("Could not generate the PDF right now — please try again in a moment.")
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
@@ -251,8 +307,12 @@ export default function VerifyCertificatePage() {
               />
 
               <div className="mt-6 text-center">
-                <button onClick={handlePrint} className="btn-primary w-full sm:w-auto">
-                  🖨 Download / Print
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={downloading}
+                  className="btn-primary w-full sm:w-auto disabled:opacity-70"
+                >
+                  {downloading ? 'Generating PDF…' : '⬇️ Download PDF'}
                 </button>
               </div>
             </div>
