@@ -58,3 +58,13 @@ export async function getOrgStatusHistory(orgId) {
   const res = await client.get(`/superadmin/orgs/${orgId}/history`)
   return res.data?.data ?? []
 }
+
+// Both flags are sent together on every call — the SP takes both and sets them
+// as a pair (see SuperAdmin_UpdateOrgProjectPermissions), never one at a time.
+export async function updateOrgProjectPermissions(orgId, canCreateRecurring, canCreateFlexible) {
+  const res = await client.patch(`/superadmin/orgs/${orgId}/project-permissions`, {
+    canCreateRecurring,
+    canCreateFlexible,
+  })
+  return res.data
+}

@@ -15,6 +15,9 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   const [suspendReason, setSuspendReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [viewingDocId, setViewingDocId] = useState(null)
+  const [canCreateRecurring, setCanCreateRecurring] = useState(false)
+  const [canCreateFlexible, setCanCreateFlexible] = useState(false)
+  const [savingPermission, setSavingPermission] = useState(null) // 'recurring' | 'flexible' | null
 
   useEffect(() => {
     if (!orgId) return
@@ -23,7 +26,12 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     setReason('')
     setSuspendOpen(false)
     setSuspendReason('')
-    orgsApi.getOrgDetail(orgId).then(setOrg).catch(() => setOrg(null))
+    orgsApi.getOrgDetail(orgId).then((o) => {
+      setOrg(o)
+      // SP returns TINYINT (0/1), not a real boolean — coerce explicitly.
+      setCanCreateRecurring(!!o?.canCreateRecurring)
+      setCanCreateFlexible(!!o?.canCreateFlexible)
+    }).catch(() => setOrg(null))
     orgsApi.getOrgDocuments(orgId).then(setDocuments).catch(() => setDocuments([]))
     orgsApi.getOrgStatusHistory(orgId)
       .then((h) => { setHistory(h); setHistoryAvailable(true) })
@@ -84,6 +92,36 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
       setBusy(false)
     }
   }
+  // Both flags always go together — the API takes both on every call, so we
+  // send the current (possibly just-flipped) value of each, not just the one
+  // the admin clicked. Optimistic update with revert-on-failure since these
+  // are simple booleans and the row already shows a spinner while in flight.
+  async function handleTogglePermission(which) {
+    if (savingPermission) return
+    const nextRecurring = which === 'recurring' ? !canCreateRecurring : canCreateRecurring
+    const nextFlexible  = which === 'flexible'  ? !canCreateFlexible  : canCreateFlexible
+
+    setSavingPermission(which)
+    setCanCreateRecurring(nextRecurring)
+    setCanCreateFlexible(nextFlexible)
+    try {
+      const res = await orgsApi.updateOrgProjectPermissions(orgId, nextRecurring, nextFlexible)
+      if (res?.isSuccess === 1) {
+        alert('Permissions updated')
+      } else {
+        throw new Error(res?.message || 'Update failed')
+      }
+    } catch {
+      // Revert to pre-toggle state on failure — only the flag that was
+      // actually clicked needs flipping back; the other was never touched.
+      if (which === 'recurring') setCanCreateRecurring(!nextRecurring)
+      else setCanCreateFlexible(!nextFlexible)
+      alert('Could not update permissions. Please try again.')
+    } finally {
+      setSavingPermission(null)
+    }
+  }
+
   async function handleVerifyDoc(doc) {
     await orgsApi.verifyOrgDocument(doc.orgDocumentId, !doc.isVerified)
     refreshDocs()
@@ -156,6 +194,27 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
       <div className="body" style={{ marginBottom: 12 }}>{org.mission || '—'}</div>
       <div className="slab">Vision</div>
       <div className="body" style={{ marginBottom: 16 }}>{org.vision || '—'}</div>
+
+      <div className="slab">Project Permissions</div>
+      <div className="xs" style={{ marginBottom: 10 }}>Control which project types this organisation can create.</div>
+      <div style={{ marginBottom: 16 }}>
+        <PermissionRow
+          label="Recurring Projects"
+          subLabel="Allow this org to create multi-session recurring projects"
+          checked={canCreateRecurring}
+          saving={savingPermission === 'recurring'}
+          disabled={savingPermission !== null}
+          onToggle={() => handleTogglePermission('recurring')}
+        />
+        <PermissionRow
+          label="Flexible Projects"
+          subLabel="Allow this org to create open-ended flexible projects"
+          checked={canCreateFlexible}
+          saving={savingPermission === 'flexible'}
+          disabled={savingPermission !== null}
+          onToggle={() => handleTogglePermission('flexible')}
+        />
+      </div>
 
       <div className="slab">Submitted documents</div>
       {documents.length === 0 && <div className="xs" style={{ paddingBottom: 8 }}>No documents uploaded.</div>}
@@ -245,5 +304,38 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
         </div>
       )}
     </Drawer>
+  )
+}
+
+// Pill-switch styling matches the existing Active toggle in LookupManagementPage.jsx
+// (var(--p) on / #D8D8E4 off, 34x19 track) — kept consistent rather than introducing
+// a new switch component or library for this one section.
+function PermissionRow({ label, subLabel, checked, saving, disabled, onToggle }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--bd, #EEEEF2)' }}>
+      <div style={{ paddingRight: 12 }}>
+        <div className="h3" style={{ fontSize: 13 }}>{label}</div>
+        <div className="xs">{subLabel}</div>
+      </div>
+      {saving ? (
+        <div className="xs">Saving…</div>
+      ) : (
+        <div
+          role="switch"
+          aria-checked={checked}
+          aria-label={label}
+          style={{
+            width: 34, height: 19, borderRadius: 10,
+            background: checked ? 'var(--p)' : '#D8D8E4',
+            position: 'relative', flexShrink: 0,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.6 : 1,
+          }}
+          onClick={disabled ? undefined : onToggle}
+        >
+          <div style={{ position: 'absolute', top: 2, left: checked ? 17 : 2, width: 15, height: 15, background: '#fff', borderRadius: '50%', transition: 'left .15s' }} />
+        </div>
+      )}
+    </div>
   )
 }
