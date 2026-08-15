@@ -17,7 +17,9 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   const [viewingDocId, setViewingDocId] = useState(null)
   const [canCreateRecurring, setCanCreateRecurring] = useState(false)
   const [canCreateFlexible, setCanCreateFlexible] = useState(false)
-  const [savingPermission, setSavingPermission] = useState(null) // 'recurring' | 'flexible' | null
+  const [orgMaxVolunteers, setOrgMaxVolunteers] = useState('')
+  const [savingPermission, setSavingPermission] = useState(null) // 'recurring' | 'flexible' | 'maxVolunteers' | null
+  const [maxVolunteersError, setMaxVolunteersError] = useState('')
 
   useEffect(() => {
     if (!orgId) return
@@ -26,11 +28,13 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     setReason('')
     setSuspendOpen(false)
     setSuspendReason('')
+    setMaxVolunteersError('')
     orgsApi.getOrgDetail(orgId).then((o) => {
       setOrg(o)
       // SP returns TINYINT (0/1), not a real boolean — coerce explicitly.
       setCanCreateRecurring(!!o?.canCreateRecurring)
       setCanCreateFlexible(!!o?.canCreateFlexible)
+      setOrgMaxVolunteers(o?.orgMaxVolunteers != null ? String(o.orgMaxVolunteers) : '')
     }).catch(() => setOrg(null))
     orgsApi.getOrgDocuments(orgId).then(setDocuments).catch(() => setDocuments([]))
     orgsApi.getOrgStatusHistory(orgId)
@@ -117,6 +121,37 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
       if (which === 'recurring') setCanCreateRecurring(!nextRecurring)
       else setCanCreateFlexible(!nextFlexible)
       alert('Could not update permissions. Please try again.')
+    } finally {
+      setSavingPermission(null)
+    }
+  }
+
+  // Free-text field, so unlike the toggles this needs an explicit Save rather
+  // than firing on every keystroke. Sends the current toggle values alongside
+  // the new limit — same "both/all fields together" contract as the toggles.
+  async function handleSaveMaxVolunteers() {
+    if (savingPermission) return
+    const trimmed = orgMaxVolunteers.trim()
+    const parsed = Number(trimmed)
+    if (!trimmed || !Number.isInteger(parsed) || parsed < 1) {
+      setMaxVolunteersError('Enter a whole number of 1 or more.')
+      return
+    }
+    setMaxVolunteersError('')
+    const previous = org?.orgMaxVolunteers != null ? String(org.orgMaxVolunteers) : ''
+
+    setSavingPermission('maxVolunteers')
+    try {
+      const res = await orgsApi.updateOrgProjectPermissions(orgId, canCreateRecurring, canCreateFlexible, parsed)
+      if (res?.isSuccess === 1) {
+        setOrg((o) => (o ? { ...o, orgMaxVolunteers: parsed } : o))
+        alert('Permissions updated')
+      } else {
+        throw new Error(res?.message || 'Update failed')
+      }
+    } catch (err) {
+      setOrgMaxVolunteers(previous)
+      alert(err?.response?.data?.message || 'Could not update max volunteers. Please try again.')
     } finally {
       setSavingPermission(null)
     }
@@ -214,6 +249,35 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
           disabled={savingPermission !== null}
           onToggle={() => handleTogglePermission('flexible')}
         />
+
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '10px 0' }}>
+          <div style={{ paddingRight: 12 }}>
+            <div className="h3" style={{ fontSize: 13 }}>Max Volunteers</div>
+            <div className="xs">Maximum volunteers allowed per project for this org</div>
+            {maxVolunteersError && <div className="xs" style={{ color: '#C0392B', marginTop: 2 }}>{maxVolunteersError}</div>}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <input
+              className="fi"
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              style={{ width: 90 }}
+              value={orgMaxVolunteers}
+              disabled={savingPermission !== null}
+              onChange={(e) => { setOrgMaxVolunteers(e.target.value); setMaxVolunteersError('') }}
+            />
+            <button
+              className="btn-o btn-sm"
+              style={{ width: 'auto' }}
+              onClick={handleSaveMaxVolunteers}
+              disabled={savingPermission !== null || orgMaxVolunteers.trim() === (org?.orgMaxVolunteers != null ? String(org.orgMaxVolunteers) : '')}
+            >
+              {savingPermission === 'maxVolunteers' ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="slab">Submitted documents</div>

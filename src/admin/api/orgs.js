@@ -61,10 +61,13 @@ export async function getOrgStatusHistory(orgId) {
 
 // Both flags are sent together on every call — the SP takes both and sets them
 // as a pair (see SuperAdmin_UpdateOrgProjectPermissions), never one at a time.
-export async function updateOrgProjectPermissions(orgId, canCreateRecurring, canCreateFlexible) {
+// orgMaxVolunteers is optional — omit/pass null to leave the org's current
+// limit unchanged (the SP COALESCEs a null param against the existing value).
+export async function updateOrgProjectPermissions(orgId, canCreateRecurring, canCreateFlexible, orgMaxVolunteers = null) {
   const res = await client.patch(`/superadmin/orgs/${orgId}/project-permissions`, {
     canCreateRecurring,
     canCreateFlexible,
+    orgMaxVolunteers,
   })
   return res.data
 }
