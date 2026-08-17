@@ -152,10 +152,44 @@ function Counter({ value, suffix, label }) {
   )
 }
 
+/* ---------------- global stats ----------------
+   Defaults match the API's own display floors (Settings, PLATFORM group —
+   GLOBAL_STATS_MIN_*) so the section renders sensible numbers immediately,
+   then silently swaps in the live values once /public/global-stats resolves.
+   "Raised" is intentionally static, not DB-driven (product decision). */
+const STATS_DEFAULT = { countries: 1, organisations: 50, volunteers: 4000, raised: 1_000_000 }
+
+function useGlobalStats() {
+  const [stats, setStats] = useState(STATS_DEFAULT)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/public/global-stats`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (cancelled || !json || json.isSuccess !== 1 || !json.data) return
+        const { countries, organisations, volunteers, raised } = json.data
+        setStats({
+          countries:     Number(countries)     || STATS_DEFAULT.countries,
+          organisations: Number(organisations) || STATS_DEFAULT.organisations,
+          volunteers:    Number(volunteers)    || STATS_DEFAULT.volunteers,
+          raised:        Number(raised)        || STATS_DEFAULT.raised,
+        })
+      })
+      // Network/API hiccup — the section just keeps showing the defaults above,
+      // no error state needed for a decorative stat strip.
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  return stats
+}
+
 /* ---------------- the photo-wall globe ---------------- */
 export default function GlobeExplore() {
   const mountRef = useRef(null)
   const tipRef = useRef(null)
+  const stats = useGlobalStats()
 
   useEffect(() => {
     const mount = mountRef.current
@@ -499,10 +533,10 @@ export default function GlobeExplore() {
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-6 md:mt-8 md:grid-cols-4">
-          <Counter value={190} suffix="+" label="Countries" />
-          <Counter value={62000} suffix="+" label="Organizations" />
-          <Counter value={4200000} suffix="" label="Volunteers" />
-          <Counter value={820} suffix="M+" label="Raised (USD)" />
+          <Counter value={stats.countries} suffix="+" label="Countries" />
+          <Counter value={stats.organisations} suffix="+" label="Organizations" />
+          <Counter value={stats.volunteers} suffix="" label="Volunteers" />
+          <Counter value={Math.round((stats.raised / 1_000_000) * 10) / 10} suffix="M+" label="Raised (USD)" />
         </div>
       </div>
     </section>
