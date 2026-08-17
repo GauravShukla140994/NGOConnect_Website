@@ -535,7 +535,7 @@ export default function GlobeExplore() {
         <div className="mt-6 grid grid-cols-2 gap-6 md:mt-8 md:grid-cols-4">
           <Counter value={stats.countries} suffix="+" label="Countries" />
           <Counter value={stats.organisations} suffix="+" label="Organizations" />
-          <Counter value={stats.volunteers} suffix="" label="Volunteers" />
+          <Counter value={stats.volunteers} suffix="+" label="Volunteers" />
           <Counter value={Math.round((stats.raised / 1_000_000) * 10) / 10} suffix="M+" label="Raised (USD)" />
         </div>
       </div>
