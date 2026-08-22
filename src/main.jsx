@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import App from './App.jsx'
 import AdminApp from './admin/AdminApp.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
@@ -13,10 +13,20 @@ import Careers from './pages/company/Careers.jsx'
 import Press from './pages/company/Press.jsx'
 import Contact from './pages/company/Contact.jsx'
 import InvitePage from './pages/InvitePage.jsx'
-import NgoLandingPage from './pages/NgoLandingPage.jsx'
+import OrganisationProfilePage from './pages/OrganisationProfilePage.jsx'
 import OpportunityLandingPage from './pages/OpportunityLandingPage.jsx'
 import VerifyCertificatePage from './pages/VerifyCertificatePage.jsx'
 import './index.css'
+
+// Old share links generated before this rename used /ngo/{token}. Redirect
+// them to the new /organisation/{token} full-profile page rather than
+// breaking already-shared links. NgoLandingPage.jsx (the old auto-app-redirect
+// card) is no longer routed to, but intentionally left in the repo, not
+// deleted, in case any behavior from it is still wanted later.
+function LegacyNgoRedirect() {
+  const { token } = useParams()
+  return <Navigate to={`/organisation/${token}`} replace />
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -33,7 +43,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/press" element={<Press />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/invite/:token" element={<InvitePage />} />
-        <Route path="/ngo/:token" element={<NgoLandingPage />} />
+        <Route path="/organisation/:token" element={<OrganisationProfilePage />} />
+        <Route path="/ngo/:token" element={<LegacyNgoRedirect />} />
         <Route path="/opportunity/:token" element={<OpportunityLandingPage />} />
         <Route path="/verify/:token" element={<VerifyCertificatePage />} />
         <Route path="/*" element={<App />} />
