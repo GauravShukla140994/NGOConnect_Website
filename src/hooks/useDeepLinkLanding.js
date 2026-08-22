@@ -15,6 +15,9 @@ function friendlyError(errorCode, message) {
   if (errorCode === 'INVALID_SHARE_TOKEN') {
     return 'This link is no longer valid. Ask the sender for a new share link.'
   }
+  if (errorCode === 'ORG_UNAVAILABLE') {
+    return "This organisation's profile isn't publicly available right now."
+  }
   return message || 'This link is no longer valid.'
 }
 

@@ -46,3 +46,11 @@ export async function reactivateMember(userId) {
   const res = await client.put(`/superadmin/members/${userId}/reactivate`)
   return res.data
 }
+
+// Proactive onboarding — creates User+UserProfile+Organisation(optional)+OrgMembers
+// in one atomic call. See SuperAdmin_CreateMemberWithOrg for validation rules
+// (duplicate email/mobile is a hard reject, not a silent merge).
+export async function createMemberWithOrg(payload) {
+  const res = await client.post('/superadmin/members', payload)
+  return res.data
+}

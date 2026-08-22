@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import OverviewPage from './pages/OverviewPage'
 import OrganisationsPage from './pages/OrganisationsPage'
 import MembersPage from './pages/MembersPage'
+import CreateMemberPage from './pages/CreateMemberPage'
 import SettingsPage from './pages/SettingsPage'
 import LookupManagementPage from './pages/LookupManagementPage'
 import CommunicationDashboardPage from './pages/communication/CommunicationDashboardPage'
@@ -25,6 +26,7 @@ export default function AdminApp() {
             <Route path="overview" element={<OverviewPage />} />
             <Route path="orgs" element={<OrganisationsPage />} />
             <Route path="members" element={<MembersPage />} />
+            <Route path="members/create" element={<CreateMemberPage />} />
             <Route path="communication" element={<Navigate to="/admin/communication/dashboard" replace />} />
             <Route path="communication/dashboard" element={<CommunicationDashboardPage />} />
             <Route path="communication/campaigns" element={<CampaignsPage />} />

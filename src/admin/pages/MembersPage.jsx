@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Avatar from '../components/Avatar'
 import StatusPill from '../components/StatusPill'
 import MultiSelectDropdown from '../components/MultiSelectDropdown'
@@ -7,6 +8,7 @@ import * as orgsApi from '../api/orgs'
 import MemberDrawer from './MemberDrawer'
 
 export default function MembersPage() {
+  const navigate = useNavigate()
   const [orgOptions, setOrgOptions] = useState([])
   const [selectedOrgIds, setSelectedOrgIds] = useState([])
   const [search, setSearch] = useState('')
@@ -54,6 +56,7 @@ export default function MembersPage() {
         <div style={{ display: 'flex', gap: 8 }}>
           <MultiSelectDropdown options={orgOptions} selected={selectedOrgIds} onChange={setSelectedOrgIds} placeholder="All organisations" />
           <input className="fs" style={{ width: 220 }} placeholder="Search by name, email..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <button className="btn-p" style={{ width: 'auto', padding: '9px 16px' }} onClick={() => navigate('/admin/members/create')}>+ Create member</button>
         </div>
       </div>
 
