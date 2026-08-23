@@ -54,3 +54,12 @@ export async function createMemberWithOrg(payload) {
   const res = await client.post('/superadmin/members', payload)
   return res.data
 }
+
+// Full-profile overwrite (name, DOB, gender, photo, address). Email/Mobile in
+// the payload are only actually applied server-side while the member has
+// never logged in (Users.IsVerified = 0) — see SuperAdmin_User_UpdateProfile.
+// Response data.emailMobileLocked tells you whether they were skipped.
+export async function updateMemberProfile(userId, payload) {
+  const res = await client.put(`/superadmin/members/${userId}/profile`, payload)
+  return res.data
+}

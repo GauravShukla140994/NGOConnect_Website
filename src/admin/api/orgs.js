@@ -71,3 +71,11 @@ export async function updateOrgProjectPermissions(orgId, canCreateRecurring, can
   })
   return res.data
 }
+
+// Full-profile overwrite (name, type, reg number, contact, address, about/
+// mission/vision, logo). Re-validates OrgName/RegNumber uniqueness server-side
+// excluding this org — see SuperAdmin_Org_UpdateProfile.
+export async function updateOrgProfile(orgId, payload) {
+  const res = await client.put(`/superadmin/orgs/${orgId}/profile`, payload)
+  return res.data
+}

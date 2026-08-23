@@ -2,7 +2,38 @@ import { useEffect, useState } from 'react'
 import Drawer from '../components/Drawer'
 import Avatar from '../components/Avatar'
 import * as orgsApi from '../api/orgs'
+import * as lookupsApi from '../api/lookups'
 import { getDocumentSignedUrl } from '../api/media'
+
+async function findLookup(typeCode) {
+  const types = await lookupsApi.getLookupTypes()
+  const type = types.find((t) => t.typeCode === typeCode)
+  if (!type) return []
+  return lookupsApi.getLookupValues(type.lookupTypeId)
+}
+
+function blankOrgEditForm(org) {
+  return {
+    orgName: org?.orgName || '',
+    orgTypeLkpId: org?.orgTypeLkpId ? String(org.orgTypeLkpId) : '',
+    regNumber: org?.regNumber || '',
+    category: org?.category || '',
+    contactPerson: org?.contactPerson || '',
+    about: org?.about || '',
+    mission: org?.mission || '',
+    vision: org?.vision || '',
+    logoUrl: org?.logoUrl || '',
+    contactEmail: org?.contactEmail || '',
+    contactPhone: org?.contactPhone || '',
+    website: org?.website || '',
+    addressLine1: org?.addressLine1 || '',
+    addressLine2: org?.addressLine2 || '',
+    city: org?.city || '',
+    state: org?.state || '',
+    pincode: org?.pincode || '',
+    country: org?.country || 'India',
+  }
+}
 
 export default function OrgDrawer({ orgId, onClose, onChanged }) {
   const [org, setOrg] = useState(null)
@@ -21,6 +52,12 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   const [savingPermission, setSavingPermission] = useState(null) // 'recurring' | 'flexible' | 'maxVolunteers' | null
   const [maxVolunteersError, setMaxVolunteersError] = useState('')
 
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState(null)
+  const [orgTypes, setOrgTypes] = useState([])
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
+
   useEffect(() => {
     if (!orgId) return
     setOrg(null)
@@ -29,6 +66,8 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     setSuspendOpen(false)
     setSuspendReason('')
     setMaxVolunteersError('')
+    setEditing(false)
+    setEditError('')
     orgsApi.getOrgDetail(orgId).then((o) => {
       setOrg(o)
       // SP returns TINYINT (0/1), not a real boolean — coerce explicitly.
@@ -40,7 +79,60 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     orgsApi.getOrgStatusHistory(orgId)
       .then((h) => { setHistory(h); setHistoryAvailable(true) })
       .catch(() => { setHistory([]); setHistoryAvailable(false) })
+    findLookup('ORG_TYPE').then(setOrgTypes).catch(() => setOrgTypes([]))
   }, [orgId])
+
+  function startEdit() {
+    setEditForm(blankOrgEditForm(org))
+    setEditError('')
+    setEditing(true)
+  }
+  function updateEditField(field, value) {
+    setEditForm((f) => ({ ...f, [field]: value }))
+  }
+  async function handleSaveEdit() {
+    if (!editForm.orgName.trim()) { setEditError('Organisation name is required.'); return }
+    if (!editForm.regNumber.trim()) { setEditError('Registration number is required.'); return }
+    if (!editForm.orgTypeLkpId) { setEditError('Organisation type is required.'); return }
+
+    setSavingEdit(true)
+    setEditError('')
+    try {
+      const payload = {
+        orgName: editForm.orgName.trim(),
+        orgTypeLkpId: Number(editForm.orgTypeLkpId),
+        regNumber: editForm.regNumber.trim(),
+        category: editForm.category || null,
+        contactPerson: editForm.contactPerson || null,
+        about: editForm.about || null,
+        mission: editForm.mission || null,
+        vision: editForm.vision || null,
+        logoUrl: editForm.logoUrl || null,
+        contactEmail: editForm.contactEmail || null,
+        contactPhone: editForm.contactPhone || null,
+        website: editForm.website || null,
+        addressLine1: editForm.addressLine1 || null,
+        addressLine2: editForm.addressLine2 || null,
+        city: editForm.city || null,
+        state: editForm.state || null,
+        pincode: editForm.pincode || null,
+        country: editForm.country || null,
+      }
+      const res = await orgsApi.updateOrgProfile(orgId, payload)
+      if (res?.isSuccess === 1) {
+        const fresh = await orgsApi.getOrgDetail(orgId)
+        setOrg(fresh)
+        setEditing(false)
+        onChanged?.()
+      } else {
+        setEditError(res?.message || 'Could not save changes. Please review the details and try again.')
+      }
+    } catch (e) {
+      setEditError(e?.response?.data?.message || 'Could not save changes. Please review the details and try again.')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   if (!orgId) return null
   if (!org) {
@@ -186,49 +278,92 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
             <div className="sm">{[org.orgType, org.city, org.state].filter(Boolean).join(' · ')}</div>
           </div>
         </div>
+        {!editing && (
+          <button className="btn-o btn-sm" style={{ flexShrink: 0 }} onClick={startEdit}>Edit</button>
+        )}
         <button className="dr-close" onClick={onClose}>×</button>
       </div>
 
-      <div className="slab">Quick facts</div>
-      <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div><div className="xs">Org type</div><div className="h3" style={{ fontSize: 13 }}>{org.orgType || '—'}</div></div>
-        <div><div className="xs">Members</div><div className="h3" style={{ fontSize: 13 }}>{org.memberCount ?? '—'}</div></div>
-        <div><div className="xs">Registered on</div><div className="h3" style={{ fontSize: 13 }}>{org.submittedAt || '—'}</div></div>
-      </div>
+      {!editing && (
+        <>
+          <div className="slab">Quick facts</div>
+          <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div><div className="xs">Org type</div><div className="h3" style={{ fontSize: 13 }}>{org.orgType || '—'}</div></div>
+            <div><div className="xs">Members</div><div className="h3" style={{ fontSize: 13 }}>{org.memberCount ?? '—'}</div></div>
+            <div><div className="xs">Registered on</div><div className="h3" style={{ fontSize: 13 }}>{org.submittedAt || '—'}</div></div>
+          </div>
 
-      <div className="slab">Tax eligibility</div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-        <span className={`pill ${org.is80GEligible ? 'pg' : 'py'}`}>
-          80G {org.is80GEligible ? '✓ Yes' : '✗ No'}
-        </span>
-        <span className={`pill ${org.is12AEligible ? 'pg' : 'py'}`}>
-          12A {org.is12AEligible ? '✓ Yes' : '✗ No'}
-        </span>
-      </div>
+          <div className="slab">Tax eligibility</div>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <span className={`pill ${org.is80GEligible ? 'pg' : 'py'}`}>
+              80G {org.is80GEligible ? '✓ Yes' : '✗ No'}
+            </span>
+            <span className={`pill ${org.is12AEligible ? 'pg' : 'py'}`}>
+              12A {org.is12AEligible ? '✓ Yes' : '✗ No'}
+            </span>
+          </div>
 
-      <div className="slab">Founder</div>
-      <div className="body" style={{ marginBottom: 16 }}>
-        <b>{org.founderName || '—'}</b><br />
-        Email: {org.founderEmail || '—'} · Phone: {org.founderMobile || '—'}
-      </div>
+          <div className="slab">Founder</div>
+          <div className="body" style={{ marginBottom: 16 }}>
+            <b>{org.founderName || '—'}</b><br />
+            Email: {org.founderEmail || '—'} · Phone: {org.founderMobile || '—'}
+          </div>
 
-      <div className="slab">Organisation contact</div>
-      <div className="body" style={{ marginBottom: 16 }}>
-        Contact person: <b>{org.contactPerson || '—'}</b><br />
-        Email: {org.contactEmail || '—'} · Phone: {org.contactPhone || '—'}
-      </div>
+          <div className="slab">Organisation contact</div>
+          <div className="body" style={{ marginBottom: 16 }}>
+            Contact person: <b>{org.contactPerson || '—'}</b><br />
+            Email: {org.contactEmail || '—'} · Phone: {org.contactPhone || '—'}
+          </div>
 
-      <div className="slab">Address</div>
-      <div className="body" style={{ marginBottom: 16 }}>
-        {[org.addressLine1, org.addressLine2, org.city, org.state, org.pincode].filter(Boolean).join(', ') || '—'}
-      </div>
+          <div className="slab">Address</div>
+          <div className="body" style={{ marginBottom: 16 }}>
+            {[org.addressLine1, org.addressLine2, org.city, org.state, org.pincode].filter(Boolean).join(', ') || '—'}
+          </div>
 
-      <div className="slab">About</div>
-      <div className="body" style={{ marginBottom: 12 }}>{org.about || '—'}</div>
-      <div className="slab">Mission</div>
-      <div className="body" style={{ marginBottom: 12 }}>{org.mission || '—'}</div>
-      <div className="slab">Vision</div>
-      <div className="body" style={{ marginBottom: 16 }}>{org.vision || '—'}</div>
+          <div className="slab">About</div>
+          <div className="body" style={{ marginBottom: 12 }}>{org.about || '—'}</div>
+          <div className="slab">Mission</div>
+          <div className="body" style={{ marginBottom: 12 }}>{org.mission || '—'}</div>
+          <div className="slab">Vision</div>
+          <div className="body" style={{ marginBottom: 16 }}>{org.vision || '—'}</div>
+        </>
+      )}
+
+      {editing && editForm && (
+        <>
+          <div className="slab">Edit organisation profile</div>
+          {editError && <div className="xs" style={{ color: '#C0392B', marginBottom: 10 }}>{editError}</div>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <input className="fi" placeholder="Organisation name *" value={editForm.orgName} onChange={(e) => updateEditField('orgName', e.target.value)} />
+            <select className="fi" value={editForm.orgTypeLkpId} onChange={(e) => updateEditField('orgTypeLkpId', e.target.value)}>
+              <option value="">Organisation type *</option>
+              {orgTypes.map((t) => <option key={t.lookupValueId} value={t.lookupValueId}>{t.valueName}</option>)}
+            </select>
+            <input className="fi" placeholder="Registration number *" value={editForm.regNumber} onChange={(e) => updateEditField('regNumber', e.target.value)} />
+            <input className="fi" placeholder="Category" value={editForm.category} onChange={(e) => updateEditField('category', e.target.value)} />
+            <input className="fi" placeholder="Contact person" value={editForm.contactPerson} onChange={(e) => updateEditField('contactPerson', e.target.value)} />
+            <input className="fi" placeholder="Contact email" value={editForm.contactEmail} onChange={(e) => updateEditField('contactEmail', e.target.value)} />
+            <input className="fi" placeholder="Contact phone" value={editForm.contactPhone} onChange={(e) => updateEditField('contactPhone', e.target.value)} />
+            <input className="fi" placeholder="Website" value={editForm.website} onChange={(e) => updateEditField('website', e.target.value)} />
+            <input className="fi" placeholder="Logo URL" value={editForm.logoUrl} onChange={(e) => updateEditField('logoUrl', e.target.value)} style={{ gridColumn: '1 / -1' }} />
+            <textarea className="fi" placeholder="About" value={editForm.about} onChange={(e) => updateEditField('about', e.target.value)} style={{ gridColumn: '1 / -1', minHeight: 60 }} />
+            <textarea className="fi" placeholder="Mission" value={editForm.mission} onChange={(e) => updateEditField('mission', e.target.value)} style={{ gridColumn: '1 / -1', minHeight: 50 }} />
+            <textarea className="fi" placeholder="Vision" value={editForm.vision} onChange={(e) => updateEditField('vision', e.target.value)} style={{ gridColumn: '1 / -1', minHeight: 50 }} />
+            <input className="fi" placeholder="Address line 1" value={editForm.addressLine1} onChange={(e) => updateEditField('addressLine1', e.target.value)} style={{ gridColumn: '1 / -1' }} />
+            <input className="fi" placeholder="Address line 2" value={editForm.addressLine2} onChange={(e) => updateEditField('addressLine2', e.target.value)} style={{ gridColumn: '1 / -1' }} />
+            <input className="fi" placeholder="City" value={editForm.city} onChange={(e) => updateEditField('city', e.target.value)} />
+            <input className="fi" placeholder="State" value={editForm.state} onChange={(e) => updateEditField('state', e.target.value)} />
+            <input className="fi" placeholder="PIN / ZIP code" value={editForm.pincode} onChange={(e) => updateEditField('pincode', e.target.value)} />
+            <input className="fi" placeholder="Country" value={editForm.country} onChange={(e) => updateEditField('country', e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
+            <button className="btn-o" style={{ width: 'auto', padding: '10px 22px' }} onClick={() => setEditing(false)} disabled={savingEdit}>Cancel</button>
+            <button className="btn-p" style={{ width: 'auto', padding: '10px 22px' }} onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="slab">Project Permissions</div>
       <div className="xs" style={{ marginBottom: 10 }}>Control which project types this organisation can create.</div>

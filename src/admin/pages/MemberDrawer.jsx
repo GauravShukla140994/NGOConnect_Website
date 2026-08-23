@@ -3,7 +3,34 @@ import Drawer from '../components/Drawer'
 import Avatar from '../components/Avatar'
 import StatusPill from '../components/StatusPill'
 import * as membersApi from '../api/members'
+import * as lookupsApi from '../api/lookups'
 import { getDocumentSignedUrl } from '../api/media'
+
+async function findLookup(typeCode) {
+  const types = await lookupsApi.getLookupTypes()
+  const type = types.find((t) => t.typeCode === typeCode)
+  if (!type) return []
+  return lookupsApi.getLookupValues(type.lookupTypeId)
+}
+
+function blankMemberEditForm(profile) {
+  return {
+    firstName: profile?.firstName || '',
+    lastName: profile?.lastName || '',
+    email: profile?.email || '',
+    mobile: profile?.mobile || '',
+    countryCode: profile?.countryCode || '+91',
+    genderLkpId: profile?.genderLkpId ? String(profile.genderLkpId) : '',
+    dateOfBirth: profile?.dateOfBirth ? String(profile.dateOfBirth).slice(0, 10) : '',
+    profilePhoto: profile?.profilePhoto || '',
+    addressLine1: profile?.addressLine1 || '',
+    addressLine2: profile?.addressLine2 || '',
+    city: profile?.city || '',
+    state: profile?.state || '',
+    pincode: profile?.pincode || '',
+    country: profile?.country || 'India',
+  }
+}
 
 function PillList({ items, cls }) {
   if (!items || items.length === 0) return <span className="xs">None on file.</span>
@@ -21,15 +48,79 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
   const [busy, setBusy] = useState(false)
   const [viewingDocId, setViewingDocId] = useState(null)
 
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState(null)
+  const [genders, setGenders] = useState([])
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
+
   useEffect(() => {
     if (!userId) return
     setProfile(null)
     setError(false)
     setRequestOpen(false)
     setIssueText('')
+    setEditing(false)
+    setEditError('')
     membersApi.getMemberProfile(userId).then(setProfile).catch(() => setError(true))
     membersApi.getMemberDocuments(userId).then(setDocuments).catch(() => setDocuments([]))
+    findLookup('GENDER').then(setGenders).catch(() => setGenders([]))
   }, [userId])
+
+  const emailMobileLocked = !!profile?.isVerified
+
+  function startEdit() {
+    setEditForm(blankMemberEditForm(profile))
+    setEditError('')
+    setEditing(true)
+  }
+  function updateEditField(field, value) {
+    setEditForm((f) => ({ ...f, [field]: value }))
+  }
+  async function handleSaveEdit() {
+    if (!editForm.firstName.trim()) { setEditError('First name is required.'); return }
+    if (!emailMobileLocked && !editForm.email.trim() && !editForm.mobile.trim()) {
+      setEditError('At least one of Email or Mobile is required.')
+      return
+    }
+
+    setSavingEdit(true)
+    setEditError('')
+    try {
+      const payload = {
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName || null,
+        // Server-side also enforces this (SuperAdmin_User_UpdateProfile ignores
+        // Email/Mobile once the member has logged in) — locking here too so
+        // the request payload matches what's shown on screen.
+        email: emailMobileLocked ? null : (editForm.email || null),
+        mobile: emailMobileLocked ? null : (editForm.mobile || null),
+        countryCode: editForm.countryCode || null,
+        genderLkpId: editForm.genderLkpId ? Number(editForm.genderLkpId) : null,
+        dateOfBirth: editForm.dateOfBirth || null,
+        profilePhoto: editForm.profilePhoto || null,
+        addressLine1: editForm.addressLine1 || null,
+        addressLine2: editForm.addressLine2 || null,
+        city: editForm.city || null,
+        state: editForm.state || null,
+        pincode: editForm.pincode || null,
+        country: editForm.country || null,
+      }
+      const res = await membersApi.updateMemberProfile(userId, payload)
+      if (res?.isSuccess === 1) {
+        const fresh = await membersApi.getMemberProfile(userId)
+        setProfile(fresh)
+        setEditing(false)
+        onChanged?.()
+      } else {
+        setEditError(res?.message || 'Could not save changes. Please review the details and try again.')
+      }
+    } catch (e) {
+      setEditError(e?.response?.data?.message || 'Could not save changes. Please review the details and try again.')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   if (!userId) return null
 
@@ -118,6 +209,9 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
             <div className="sm">{[profile.role, profile.orgNames].filter(Boolean).join(' · ')}</div>
           </div>
         </div>
+        {!editing && (
+          <button className="btn-o btn-sm" style={{ flexShrink: 0 }} onClick={startEdit}>Edit</button>
+        )}
         <button className="dr-close" onClick={onClose}>×</button>
       </div>
 
@@ -132,8 +226,59 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
         </div>
       </div>
 
-      <div className="slab">Contact</div>
-      <div className="body" style={{ marginBottom: 16 }}>Email: {profile.email || '—'} · Phone: {profile.mobile || '—'}</div>
+      {!editing && (
+        <>
+          <div className="slab">Contact</div>
+          <div className="body" style={{ marginBottom: 16 }}>Email: {profile.email || '—'} · Phone: {profile.mobile || '—'}</div>
+        </>
+      )}
+
+      {editing && editForm && (
+        <>
+          <div className="slab">Edit member profile</div>
+          {editError && <div className="xs" style={{ color: '#C0392B', marginBottom: 10 }}>{editError}</div>}
+          {emailMobileLocked && (
+            <div className="xs" style={{ marginBottom: 10 }}>
+              This member has already logged in, so Email/Mobile can't be changed here — they'd need to use the
+              app's own change-email/change-mobile flow (OTP verified).
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <input className="fi" placeholder="First name *" value={editForm.firstName} onChange={(e) => updateEditField('firstName', e.target.value)} />
+            <input className="fi" placeholder="Last name" value={editForm.lastName} onChange={(e) => updateEditField('lastName', e.target.value)} />
+            <input
+              className="fi" placeholder="Email address" type="email" value={editForm.email}
+              disabled={emailMobileLocked}
+              style={emailMobileLocked ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+              onChange={(e) => updateEditField('email', e.target.value)}
+            />
+            <input
+              className="fi" placeholder="Mobile number" value={editForm.mobile}
+              disabled={emailMobileLocked}
+              style={emailMobileLocked ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+              onChange={(e) => updateEditField('mobile', e.target.value)}
+            />
+            <select className="fi" value={editForm.genderLkpId} onChange={(e) => updateEditField('genderLkpId', e.target.value)}>
+              <option value="">Gender (optional)</option>
+              {genders.map((g) => <option key={g.lookupValueId} value={g.lookupValueId}>{g.valueName}</option>)}
+            </select>
+            <input className="fi" type="date" placeholder="Date of birth" value={editForm.dateOfBirth} onChange={(e) => updateEditField('dateOfBirth', e.target.value)} />
+            <input className="fi" placeholder="Profile photo URL" value={editForm.profilePhoto} onChange={(e) => updateEditField('profilePhoto', e.target.value)} style={{ gridColumn: '1 / -1' }} />
+            <input className="fi" placeholder="Address line 1" value={editForm.addressLine1} onChange={(e) => updateEditField('addressLine1', e.target.value)} style={{ gridColumn: '1 / -1' }} />
+            <input className="fi" placeholder="Address line 2" value={editForm.addressLine2} onChange={(e) => updateEditField('addressLine2', e.target.value)} style={{ gridColumn: '1 / -1' }} />
+            <input className="fi" placeholder="City" value={editForm.city} onChange={(e) => updateEditField('city', e.target.value)} />
+            <input className="fi" placeholder="State" value={editForm.state} onChange={(e) => updateEditField('state', e.target.value)} />
+            <input className="fi" placeholder="PIN / ZIP code" value={editForm.pincode} onChange={(e) => updateEditField('pincode', e.target.value)} />
+            <input className="fi" placeholder="Country" value={editForm.country} onChange={(e) => updateEditField('country', e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
+            <button className="btn-o" style={{ width: 'auto', padding: '10px 22px' }} onClick={() => setEditing(false)} disabled={savingEdit}>Cancel</button>
+            <button className="btn-p" style={{ width: 'auto', padding: '10px 22px' }} onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="slab">Impact</div>
       <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' }}>
