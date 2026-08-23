@@ -39,7 +39,12 @@ function PillList({ items, cls }) {
   ))
 }
 
-export default function MemberDrawer({ userId, onClose, onChanged }) {
+// userToken is the encrypted IUrlTokenService token for this member (from the
+// members list row or a previous profile fetch) — NEVER the raw numeric
+// UserId. 2026-08-24: raw UserId in this drawer's request URLs was visible
+// in the Network tab, leaking member count/growth to anyone with eyes on an
+// authenticated Super Admin session. See SuperAdminController.TryResolveId.
+export default function MemberDrawer({ userToken, onClose, onChanged }) {
   const [profile, setProfile] = useState(null)
   const [documents, setDocuments] = useState([])
   const [error, setError] = useState(false)
@@ -55,17 +60,17 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
   const [editError, setEditError] = useState('')
 
   useEffect(() => {
-    if (!userId) return
+    if (!userToken) return
     setProfile(null)
     setError(false)
     setRequestOpen(false)
     setIssueText('')
     setEditing(false)
     setEditError('')
-    membersApi.getMemberProfile(userId).then(setProfile).catch(() => setError(true))
-    membersApi.getMemberDocuments(userId).then(setDocuments).catch(() => setDocuments([]))
+    membersApi.getMemberProfile(userToken).then(setProfile).catch(() => setError(true))
+    membersApi.getMemberDocuments(userToken).then(setDocuments).catch(() => setDocuments([]))
     findLookup('GENDER').then(setGenders).catch(() => setGenders([]))
-  }, [userId])
+  }, [userToken])
 
   const emailMobileLocked = !!profile?.isVerified
 
@@ -106,9 +111,9 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
         pincode: editForm.pincode || null,
         country: editForm.country || null,
       }
-      const res = await membersApi.updateMemberProfile(userId, payload)
+      const res = await membersApi.updateMemberProfile(userToken, payload)
       if (res?.isSuccess === 1) {
-        const fresh = await membersApi.getMemberProfile(userId)
+        const fresh = await membersApi.getMemberProfile(userToken)
         setProfile(fresh)
         setEditing(false)
         onChanged?.()
@@ -122,7 +127,7 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
     }
   }
 
-  if (!userId) return null
+  if (!userToken) return null
 
   if (error) {
     return (
@@ -143,7 +148,7 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
   async function handleVerify() {
     setBusy(true)
     try {
-      await membersApi.verifyMemberProfile(userId)
+      await membersApi.verifyMemberProfile(userToken)
       onChanged?.()
       onClose()
     } finally {
@@ -154,7 +159,7 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
     if (!issueText.trim()) return
     setBusy(true)
     try {
-      await membersApi.requestMemberUpdate(userId, issueText)
+      await membersApi.requestMemberUpdate(userToken, issueText)
       onChanged?.()
       onClose()
     } finally {
@@ -165,7 +170,7 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
     if (!reasonText.trim()) return
     setBusy(true)
     try {
-      await membersApi.suspendMember(userId, reasonText)
+      await membersApi.suspendMember(userToken, reasonText)
       onChanged?.()
       onClose()
     } finally {
@@ -175,7 +180,7 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
   async function handleReactivate() {
     setBusy(true)
     try {
-      await membersApi.reactivateMember(userId)
+      await membersApi.reactivateMember(userToken)
       onChanged?.()
       onClose()
     } finally {
@@ -183,8 +188,8 @@ export default function MemberDrawer({ userId, onClose, onChanged }) {
     }
   }
   async function handleVerifyDoc(doc) {
-    await membersApi.verifyMemberDocument(doc.userDocumentId, !doc.isVerified)
-    membersApi.getMemberDocuments(userId).then(setDocuments).catch(() => {})
+    await membersApi.verifyMemberDocument(doc.userDocumentToken, !doc.isVerified)
+    membersApi.getMemberDocuments(userToken).then(setDocuments).catch(() => {})
   }
 
   async function handleViewDoc(doc) {

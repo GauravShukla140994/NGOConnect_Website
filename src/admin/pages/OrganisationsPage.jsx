@@ -15,7 +15,7 @@ export default function OrganisationsPage() {
   const [buckets, setBuckets] = useState({ pending: [], approved: [], suspended: [], rejected: [] })
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('pending')
-  const [selectedOrgId, setSelectedOrgId] = useState(null)
+  const [selectedOrgToken, setSelectedOrgToken] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -57,7 +57,7 @@ export default function OrganisationsPage() {
                 <td className="sm">{o.city}</td>
                 <td className="sm">{o.submittedAt}</td>
                 <td><StatusPill status={o.statusCode} /></td>
-                <td><button className="btn-o btn-sm" onClick={() => setSelectedOrgId(o.orgId)}>{tab === 'pending' ? 'Review' : 'View'}</button></td>
+                <td><button className="btn-o btn-sm" onClick={() => setSelectedOrgToken(o.orgToken)}>{tab === 'pending' ? 'Review' : 'View'}</button></td>
               </tr>
             ))}
             {rows.length === 0 && <tr><td colSpan={6} className="xs" style={{ padding: 18 }}>No organisations in this tab.</td></tr>}
@@ -65,7 +65,7 @@ export default function OrganisationsPage() {
         </table>
       )}
 
-      <OrgDrawer orgId={selectedOrgId} onClose={() => setSelectedOrgId(null)} onChanged={load} />
+      <OrgDrawer orgToken={selectedOrgToken} onClose={() => setSelectedOrgToken(null)} onChanged={load} />
     </div>
   )
 }

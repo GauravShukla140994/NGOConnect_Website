@@ -12,38 +12,44 @@ export async function getMembers({ orgIds, search, pageNumber = 1, pageSize = 10
   return res.data?.data?.items ?? res.data?.data ?? []
 }
 
-export async function getMemberProfile(userId) {
-  const res = await client.get(`/superadmin/members/${userId}`)
+// 2026-08-24: every function below takes/sends an encrypted userToken (or
+// userDocumentToken), never the raw numeric UserId — SuperAdminController
+// decrypts it server-side. Each list row (getMembers) and the detail response
+// (getMemberProfile) both carry a `userToken` field alongside `userId`; the
+// raw id is only ever used for React keys / display, never in a URL.
+
+export async function getMemberProfile(userToken) {
+  const res = await client.get(`/superadmin/members/${userToken}`)
   return res.data?.data
 }
 
-export async function getMemberDocuments(userId) {
-  const res = await client.get(`/superadmin/members/${userId}/documents`)
+export async function getMemberDocuments(userToken) {
+  const res = await client.get(`/superadmin/members/${userToken}/documents`)
   return res.data?.data ?? []
 }
 
-export async function verifyMemberDocument(userDocumentId, isVerified) {
-  const res = await client.put('/superadmin/members/documents/verify', { userDocumentId, isVerified })
+export async function verifyMemberDocument(userDocumentToken, isVerified) {
+  const res = await client.put('/superadmin/members/documents/verify', { userDocumentToken, isVerified })
   return res.data
 }
 
-export async function verifyMemberProfile(userId) {
-  const res = await client.put(`/superadmin/members/${userId}/verify-profile`)
+export async function verifyMemberProfile(userToken) {
+  const res = await client.put(`/superadmin/members/${userToken}/verify-profile`)
   return res.data
 }
 
-export async function requestMemberUpdate(userId, reason) {
-  const res = await client.put('/superadmin/members/request-update', { userId, reason })
+export async function requestMemberUpdate(userToken, reason) {
+  const res = await client.put('/superadmin/members/request-update', { userToken, reason })
   return res.data
 }
 
-export async function suspendMember(userId, reason) {
-  const res = await client.put(`/superadmin/members/${userId}/suspend`, { reason })
+export async function suspendMember(userToken, reason) {
+  const res = await client.put(`/superadmin/members/${userToken}/suspend`, { reason })
   return res.data
 }
 
-export async function reactivateMember(userId) {
-  const res = await client.put(`/superadmin/members/${userId}/reactivate`)
+export async function reactivateMember(userToken) {
+  const res = await client.put(`/superadmin/members/${userToken}/reactivate`)
   return res.data
 }
 
@@ -59,7 +65,7 @@ export async function createMemberWithOrg(payload) {
 // the payload are only actually applied server-side while the member has
 // never logged in (Users.IsVerified = 0) — see SuperAdmin_User_UpdateProfile.
 // Response data.emailMobileLocked tells you whether they were skipped.
-export async function updateMemberProfile(userId, payload) {
-  const res = await client.put(`/superadmin/members/${userId}/profile`, payload)
+export async function updateMemberProfile(userToken, payload) {
+  const res = await client.put(`/superadmin/members/${userToken}/profile`, payload)
   return res.data
 }

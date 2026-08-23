@@ -15,7 +15,7 @@ export default function MembersPage() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [selectedUserId, setSelectedUserId] = useState(null)
+  const [selectedUserToken, setSelectedUserToken] = useState(null)
 
   useEffect(() => {
     // Build the filter from orgs of EVERY status, not just APPROVED — otherwise the
@@ -77,7 +77,7 @@ export default function MembersPage() {
                 <td><StatusPill status={m.accountStatus} /></td>
                 <td><StatusPill status={m.profileVerificationStatus} /></td>
                 <td className="sm">{m.joinedAt}</td>
-                <td><button className="btn-o btn-sm" onClick={() => setSelectedUserId(m.userId)}>Review</button></td>
+                <td><button className="btn-o btn-sm" onClick={() => setSelectedUserToken(m.userToken)}>Review</button></td>
               </tr>
             ))}
             {members.length === 0 && <tr><td colSpan={8} className="xs" style={{ padding: 18 }}>No members match this filter.</td></tr>}
@@ -91,7 +91,7 @@ export default function MembersPage() {
         <b> Profile verification</b> (your document check).
       </div>
 
-      <MemberDrawer userId={selectedUserId} onClose={() => setSelectedUserId(null)} onChanged={load} />
+      <MemberDrawer userToken={selectedUserToken} onClose={() => setSelectedUserToken(null)} onChanged={load} />
     </div>
   )
 }

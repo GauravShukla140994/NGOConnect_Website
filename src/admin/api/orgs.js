@@ -19,43 +19,50 @@ export async function getAllOrgsBucketed() {
   }
 }
 
-export async function getOrgDetail(orgId) {
-  const res = await client.get(`/superadmin/orgs/${orgId}`)
+// 2026-08-24: every function below takes/sends an encrypted orgToken (or
+// orgDocumentToken), never the raw numeric OrgId — SuperAdminController
+// decrypts it server-side. Each list row (getOrgsByStatus) and the detail
+// response (getOrgDetail) both carry an `orgToken` field alongside `orgId`;
+// the raw id is only ever used for React keys / display, never in a URL.
+// See SuperAdminController.TryResolveId for the server-side contract.
+
+export async function getOrgDetail(orgToken) {
+  const res = await client.get(`/superadmin/orgs/${orgToken}`)
   return res.data?.data
 }
 
-export async function getOrgDocuments(orgId) {
-  const res = await client.get(`/superadmin/orgs/${orgId}/documents`)
+export async function getOrgDocuments(orgToken) {
+  const res = await client.get(`/superadmin/orgs/${orgToken}/documents`)
   return res.data?.data ?? []
 }
 
-export async function verifyOrgDocument(orgDocumentId, isVerified) {
-  const res = await client.put('/superadmin/orgs/documents/verify', { orgDocumentId, isVerified })
+export async function verifyOrgDocument(orgDocumentToken, isVerified) {
+  const res = await client.put('/superadmin/orgs/documents/verify', { orgDocumentToken, isVerified })
   return res.data
 }
 
-export async function approveOrg(orgId) {
-  const res = await client.put(`/superadmin/orgs/${orgId}/approve`)
+export async function approveOrg(orgToken) {
+  const res = await client.put(`/superadmin/orgs/${orgToken}/approve`)
   return res.data
 }
 
-export async function rejectOrg(orgId, reason) {
-  const res = await client.put('/superadmin/orgs/reject', { orgId, reason })
+export async function rejectOrg(orgToken, reason) {
+  const res = await client.put('/superadmin/orgs/reject', { orgToken, reason })
   return res.data
 }
 
-export async function suspendOrg(orgId, reason) {
-  const res = await client.put('/superadmin/orgs/suspend', { orgId, reason })
+export async function suspendOrg(orgToken, reason) {
+  const res = await client.put('/superadmin/orgs/suspend', { orgToken, reason })
   return res.data
 }
 
-export async function reactivateOrg(orgId) {
-  const res = await client.put(`/superadmin/orgs/${orgId}/reactivate`)
+export async function reactivateOrg(orgToken) {
+  const res = await client.put(`/superadmin/orgs/${orgToken}/reactivate`)
   return res.data
 }
 
-export async function getOrgStatusHistory(orgId) {
-  const res = await client.get(`/superadmin/orgs/${orgId}/history`)
+export async function getOrgStatusHistory(orgToken) {
+  const res = await client.get(`/superadmin/orgs/${orgToken}/history`)
   return res.data?.data ?? []
 }
 
@@ -63,8 +70,8 @@ export async function getOrgStatusHistory(orgId) {
 // as a pair (see SuperAdmin_UpdateOrgProjectPermissions), never one at a time.
 // orgMaxVolunteers is optional — omit/pass null to leave the org's current
 // limit unchanged (the SP COALESCEs a null param against the existing value).
-export async function updateOrgProjectPermissions(orgId, canCreateRecurring, canCreateFlexible, orgMaxVolunteers = null) {
-  const res = await client.patch(`/superadmin/orgs/${orgId}/project-permissions`, {
+export async function updateOrgProjectPermissions(orgToken, canCreateRecurring, canCreateFlexible, orgMaxVolunteers = null) {
+  const res = await client.patch(`/superadmin/orgs/${orgToken}/project-permissions`, {
     canCreateRecurring,
     canCreateFlexible,
     orgMaxVolunteers,
@@ -75,7 +82,7 @@ export async function updateOrgProjectPermissions(orgId, canCreateRecurring, can
 // Full-profile overwrite (name, type, reg number, contact, address, about/
 // mission/vision, logo). Re-validates OrgName/RegNumber uniqueness server-side
 // excluding this org — see SuperAdmin_Org_UpdateProfile.
-export async function updateOrgProfile(orgId, payload) {
-  const res = await client.put(`/superadmin/orgs/${orgId}/profile`, payload)
+export async function updateOrgProfile(orgToken, payload) {
+  const res = await client.put(`/superadmin/orgs/${orgToken}/profile`, payload)
   return res.data
 }

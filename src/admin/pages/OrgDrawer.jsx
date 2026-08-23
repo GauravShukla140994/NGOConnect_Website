@@ -35,7 +35,14 @@ function blankOrgEditForm(org) {
   }
 }
 
-export default function OrgDrawer({ orgId, onClose, onChanged }) {
+// orgToken is the encrypted IUrlTokenService token for this org (from the
+// orgs list row or a previous detail fetch) — NEVER the raw numeric OrgId.
+// 2026-08-24: raw OrgId in this drawer's request URLs (GET /superadmin/
+// orgs/64, etc.) was visible in the Network tab, leaking org count/growth to
+// anyone with eyes on an authenticated Super Admin session. See
+// SuperAdminController.TryResolveId for the server-side contract — every
+// orgsApi call below now takes/sends this token instead.
+export default function OrgDrawer({ orgToken, onClose, onChanged }) {
   const [org, setOrg] = useState(null)
   const [documents, setDocuments] = useState([])
   const [history, setHistory] = useState([])
@@ -59,7 +66,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   const [editError, setEditError] = useState('')
 
   useEffect(() => {
-    if (!orgId) return
+    if (!orgToken) return
     setOrg(null)
     setRejectOpen(false)
     setReason('')
@@ -68,24 +75,31 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     setMaxVolunteersError('')
     setEditing(false)
     setEditError('')
-    orgsApi.getOrgDetail(orgId).then((o) => {
+    orgsApi.getOrgDetail(orgToken).then((o) => {
       setOrg(o)
       // SP returns TINYINT (0/1), not a real boolean — coerce explicitly.
       setCanCreateRecurring(!!o?.canCreateRecurring)
       setCanCreateFlexible(!!o?.canCreateFlexible)
       setOrgMaxVolunteers(o?.orgMaxVolunteers != null ? String(o.orgMaxVolunteers) : '')
     }).catch(() => setOrg(null))
-    orgsApi.getOrgDocuments(orgId).then(setDocuments).catch(() => setDocuments([]))
-    orgsApi.getOrgStatusHistory(orgId)
+    orgsApi.getOrgDocuments(orgToken).then(setDocuments).catch(() => setDocuments([]))
+    orgsApi.getOrgStatusHistory(orgToken)
       .then((h) => { setHistory(h); setHistoryAvailable(true) })
       .catch(() => { setHistory([]); setHistoryAvailable(false) })
     findLookup('ORG_TYPE').then(setOrgTypes).catch(() => setOrgTypes([]))
-  }, [orgId])
+  }, [orgToken])
 
   function startEdit() {
     setEditForm(blankOrgEditForm(org))
     setEditError('')
     setEditing(true)
+  }
+  // org.orgToken (from GetOrgDetailAsync) is the SAME encrypted "ORG:{id}"
+  // token ShareController mints for public share links — no extra API call
+  // needed, and no raw OrgId ever touches this request either.
+  function handleViewProfile() {
+    if (!org?.orgToken) return
+    window.open(`${window.location.origin}/organisation/${org.orgToken}`, '_blank', 'noreferrer')
   }
   function updateEditField(field, value) {
     setEditForm((f) => ({ ...f, [field]: value }))
@@ -118,9 +132,9 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
         pincode: editForm.pincode || null,
         country: editForm.country || null,
       }
-      const res = await orgsApi.updateOrgProfile(orgId, payload)
+      const res = await orgsApi.updateOrgProfile(orgToken, payload)
       if (res?.isSuccess === 1) {
-        const fresh = await orgsApi.getOrgDetail(orgId)
+        const fresh = await orgsApi.getOrgDetail(orgToken)
         setOrg(fresh)
         setEditing(false)
         onChanged?.()
@@ -134,7 +148,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     }
   }
 
-  if (!orgId) return null
+  if (!orgToken) return null
   if (!org) {
     return (
       <Drawer open onClose={onClose}>
@@ -144,13 +158,13 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   }
 
   async function refreshDocs() {
-    orgsApi.getOrgDocuments(orgId).then(setDocuments).catch(() => {})
+    orgsApi.getOrgDocuments(orgToken).then(setDocuments).catch(() => {})
   }
 
   async function handleApprove() {
     setBusy(true)
     try {
-      await orgsApi.approveOrg(orgId)
+      await orgsApi.approveOrg(orgToken)
       onChanged?.()
       onClose()
     } finally {
@@ -161,7 +175,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     if (!reason.trim()) return
     setBusy(true)
     try {
-      await orgsApi.rejectOrg(orgId, reason)
+      await orgsApi.rejectOrg(orgToken, reason)
       onChanged?.()
       onClose()
     } finally {
@@ -171,7 +185,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   async function handleSuspend() {
     setBusy(true)
     try {
-      await orgsApi.suspendOrg(orgId, suspendReason || undefined)
+      await orgsApi.suspendOrg(orgToken, suspendReason || undefined)
       onChanged?.()
       onClose()
     } finally {
@@ -181,7 +195,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   async function handleReactivate() {
     setBusy(true)
     try {
-      await orgsApi.reactivateOrg(orgId)
+      await orgsApi.reactivateOrg(orgToken)
       onChanged?.()
       onClose()
     } finally {
@@ -201,7 +215,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
     setCanCreateRecurring(nextRecurring)
     setCanCreateFlexible(nextFlexible)
     try {
-      const res = await orgsApi.updateOrgProjectPermissions(orgId, nextRecurring, nextFlexible)
+      const res = await orgsApi.updateOrgProjectPermissions(orgToken, nextRecurring, nextFlexible)
       if (res?.isSuccess === 1) {
         alert('Permissions updated')
       } else {
@@ -234,7 +248,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
 
     setSavingPermission('maxVolunteers')
     try {
-      const res = await orgsApi.updateOrgProjectPermissions(orgId, canCreateRecurring, canCreateFlexible, parsed)
+      const res = await orgsApi.updateOrgProjectPermissions(orgToken, canCreateRecurring, canCreateFlexible, parsed)
       if (res?.isSuccess === 1) {
         setOrg((o) => (o ? { ...o, orgMaxVolunteers: parsed } : o))
         alert('Permissions updated')
@@ -250,7 +264,7 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
   }
 
   async function handleVerifyDoc(doc) {
-    await orgsApi.verifyOrgDocument(doc.orgDocumentId, !doc.isVerified)
+    await orgsApi.verifyOrgDocument(doc.orgDocumentToken, !doc.isVerified)
     refreshDocs()
   }
 
@@ -279,7 +293,10 @@ export default function OrgDrawer({ orgId, onClose, onChanged }) {
           </div>
         </div>
         {!editing && (
-          <button className="btn-o btn-sm" style={{ flexShrink: 0 }} onClick={startEdit}>Edit</button>
+          <>
+            <button className="btn-o btn-sm" style={{ flexShrink: 0 }} onClick={handleViewProfile}>View profile</button>
+            <button className="btn-o btn-sm" style={{ flexShrink: 0 }} onClick={startEdit}>Edit</button>
+          </>
         )}
         <button className="dr-close" onClick={onClose}>×</button>
       </div>
