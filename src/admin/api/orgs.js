@@ -41,8 +41,20 @@ export async function verifyOrgDocument(orgDocumentToken, isVerified) {
   return res.data
 }
 
-export async function approveOrg(orgToken) {
-  const res = await client.put(`/superadmin/orgs/${orgToken}/approve`)
+// 2026-08-25: endpoint moved from PUT /orgs/{orgToken}/approve to a body-based
+// PUT /orgs/approve — now also carries isNonRegistered + optional remarks
+// (stored in OrgStatusHistory and included in the approval notification sent
+// to org admins). See SuperAdminController.ApproveOrg / ApproveOrgRequest.
+export async function approveOrg(orgToken, isNonRegistered = false, remarks = null) {
+  const res = await client.put('/superadmin/orgs/approve', { orgToken, isNonRegistered, remarks })
+  return res.data
+}
+
+// New (2026-08-25): toggle registration status on ANY org regardless of
+// current approval status — independent of the approve/reject/suspend flow.
+// See SuperAdminController.SetOrgNonRegistered / SetNonRegisteredRequest.
+export async function setOrgNonRegistered(orgToken, isNonRegistered, remarks = null) {
+  const res = await client.put('/superadmin/orgs/set-non-registered', { orgToken, isNonRegistered, remarks })
   return res.data
 }
 

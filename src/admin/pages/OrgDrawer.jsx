@@ -52,6 +52,12 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
   const [suspendOpen, setSuspendOpen] = useState(false)
   const [suspendReason, setSuspendReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const [approveNonRegistered, setApproveNonRegistered] = useState(false)
+  const [approveRemarks, setApproveRemarks] = useState('')
+  const [regStatusOpen, setRegStatusOpen] = useState(false)
+  const [regStatusNonRegistered, setRegStatusNonRegistered] = useState(false)
+  const [regStatusRemarks, setRegStatusRemarks] = useState('')
+  const [savingRegStatus, setSavingRegStatus] = useState(false)
   const [viewingDocId, setViewingDocId] = useState(null)
   const [canCreateRecurring, setCanCreateRecurring] = useState(false)
   const [canCreateFlexible, setCanCreateFlexible] = useState(false)
@@ -75,12 +81,17 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
     setMaxVolunteersError('')
     setEditing(false)
     setEditError('')
+    setApproveNonRegistered(false)
+    setApproveRemarks('')
+    setRegStatusOpen(false)
     orgsApi.getOrgDetail(orgToken).then((o) => {
       setOrg(o)
       // SP returns TINYINT (0/1), not a real boolean — coerce explicitly.
       setCanCreateRecurring(!!o?.canCreateRecurring)
       setCanCreateFlexible(!!o?.canCreateFlexible)
       setOrgMaxVolunteers(o?.orgMaxVolunteers != null ? String(o.orgMaxVolunteers) : '')
+      setRegStatusNonRegistered(!!o?.isNonRegistered)
+      setRegStatusRemarks('')
     }).catch(() => setOrg(null))
     orgsApi.getOrgDocuments(orgToken).then(setDocuments).catch(() => setDocuments([]))
     orgsApi.getOrgStatusHistory(orgToken)
@@ -164,11 +175,35 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
   async function handleApprove() {
     setBusy(true)
     try {
-      await orgsApi.approveOrg(orgToken)
+      await orgsApi.approveOrg(orgToken, approveNonRegistered, approveRemarks.trim() || null)
       onChanged?.()
       onClose()
     } finally {
       setBusy(false)
+    }
+  }
+  // Independent of the approve/reject/suspend flow — toggles registration
+  // status on an already-APPROVED org. Refreshes the drawer's detail on
+  // success (per spec) rather than closing it, since the admin may want to
+  // keep reviewing the same org.
+  async function handleSaveRegStatus() {
+    setSavingRegStatus(true)
+    try {
+      const res = await orgsApi.setOrgNonRegistered(orgToken, regStatusNonRegistered, regStatusRemarks.trim() || null)
+      if (res?.isSuccess === 1) {
+        const fresh = await orgsApi.getOrgDetail(orgToken)
+        setOrg(fresh)
+        setRegStatusOpen(false)
+        setRegStatusRemarks('')
+        onChanged?.()
+        alert('Registration status updated.')
+      } else {
+        alert(res?.message || 'Could not update registration status. Please try again.')
+      }
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Could not update registration status. Please try again.')
+    } finally {
+      setSavingRegStatus(false)
     }
   }
   async function handleReject() {
@@ -470,6 +505,24 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
       {(status === 'PENDING' || status === 'UNDER_REVIEW') && (
         <div>
           <div className="slab">Decision</div>
+          <div className="fl" style={{ marginBottom: 10 }}>
+            <label>Remarks (optional, shown to org admins)</label>
+            <textarea
+              className="fta"
+              value={approveRemarks}
+              onChange={(e) => setApproveRemarks(e.target.value.slice(0, 1000))}
+              placeholder="Optional remarks for the organisation admin…"
+              maxLength={1000}
+            />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={approveNonRegistered}
+              onChange={(e) => setApproveNonRegistered(e.target.checked)}
+            />
+            <span className="sm">Approve as non-registered organisation</span>
+          </label>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn-tl" style={{ flex: 1 }} onClick={handleApprove} disabled={busy}>Approve</button>
             <button className="btn-rd" style={{ flex: 1 }} onClick={() => setRejectOpen((o) => !o)}>Reject</button>
@@ -491,6 +544,37 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
 
       {status === 'APPROVED' && (
         <div>
+          <div className="slab">Registration Status</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span className={`pill ${org.isNonRegistered ? 'py' : 'pg'}`}>
+              {org.isNonRegistered ? 'Non-Registered' : 'Registered'}
+            </span>
+            <button className="btn-o btn-sm" onClick={() => setRegStatusOpen((o) => !o)}>Change Registration Status</button>
+          </div>
+          <div className={`reject-box${regStatusOpen ? ' on' : ''}`}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={regStatusNonRegistered}
+                onChange={(e) => setRegStatusNonRegistered(e.target.checked)}
+              />
+              <span className="sm">Mark as Non-Registered</span>
+            </label>
+            <div className="fl" style={{ marginTop: 10 }}>
+              <label>Remarks (optional)</label>
+              <textarea
+                className="fta"
+                value={regStatusRemarks}
+                onChange={(e) => setRegStatusRemarks(e.target.value.slice(0, 1000))}
+                placeholder="Reason for change…"
+                maxLength={1000}
+              />
+            </div>
+            <button className="btn-o" style={{ width: '100%' }} onClick={handleSaveRegStatus} disabled={savingRegStatus}>
+              {savingRegStatus ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+
           <div className="slab">Actions</div>
           <button className="btn-yw" style={{ width: '100%' }} onClick={() => setSuspendOpen((o) => !o)} disabled={busy}>Suspend organisation</button>
           <div className={`reject-box${suspendOpen ? ' on' : ''}`}>

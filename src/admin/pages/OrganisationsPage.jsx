@@ -49,7 +49,7 @@ export default function OrganisationsPage() {
       ) : (
         <table>
           <tbody>
-            <tr><th>Organisation</th><th>Type</th><th>City</th><th>Submitted</th><th>Status</th><th>Action</th></tr>
+            <tr><th>Organisation</th><th>Type</th><th>City</th><th>Submitted</th><th>Status</th><th>Registration</th><th>Action</th></tr>
             {rows.map((o) => (
               <tr key={o.orgId}>
                 <td><div className="org-row"><Avatar name={o.orgName} photoUrl={o.logoUrl} size={32} radius={8} /> {o.orgName}</div></td>
@@ -57,10 +57,19 @@ export default function OrganisationsPage() {
                 <td className="sm">{o.city}</td>
                 <td className="sm">{o.submittedAt}</td>
                 <td><StatusPill status={o.statusCode} /></td>
+                <td>
+                  {/* Only meaningful once approved — IsNonRegistered is just its
+                      unset DB default (0) before then, so no badge pre-approval. */}
+                  {o.statusCode === 'APPROVED' ? (
+                    <span className={`pill ${o.isNonRegistered ? 'py' : 'pg'}`}>
+                      {o.isNonRegistered ? 'Non-Reg' : 'Registered'}
+                    </span>
+                  ) : '—'}
+                </td>
                 <td><button className="btn-o btn-sm" onClick={() => setSelectedOrgToken(o.orgToken)}>{tab === 'pending' ? 'Review' : 'View'}</button></td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={6} className="xs" style={{ padding: 18 }}>No organisations in this tab.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={7} className="xs" style={{ padding: 18 }}>No organisations in this tab.</td></tr>}
           </tbody>
         </table>
       )}
