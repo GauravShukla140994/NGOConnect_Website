@@ -17,6 +17,7 @@ function blankOrgEditForm(org) {
     orgName: org?.orgName || '',
     orgTypeLkpId: org?.orgTypeLkpId ? String(org.orgTypeLkpId) : '',
     regNumber: org?.regNumber || '',
+    registrationDate: org?.registrationDate ? String(org.registrationDate).slice(0, 10) : '',
     category: org?.category || '',
     contactPerson: org?.contactPerson || '',
     about: org?.about || '',
@@ -58,6 +59,15 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
   const [regStatusNonRegistered, setRegStatusNonRegistered] = useState(false)
   const [regStatusRemarks, setRegStatusRemarks] = useState('')
   const [savingRegStatus, setSavingRegStatus] = useState(false)
+  // 2026-08-26: Reject + Request Update on an already-APPROVED org. Reject here
+  // reuses the same rejectOrg call as the PENDING flow (backend now allows it
+  // from APPROVED too, and cascade-cancels the org's live projects). Request
+  // Update is the soft alternative — org flips to NEEDS_UPDATE, projects untouched.
+  const [approvedRejectOpen, setApprovedRejectOpen] = useState(false)
+  const [approvedRejectReason, setApprovedRejectReason] = useState('')
+  const [requestUpdateOpen, setRequestUpdateOpen] = useState(false)
+  const [requestUpdateReason, setRequestUpdateReason] = useState('')
+  const [savingCompliance, setSavingCompliance] = useState(false)
   const [viewingDocId, setViewingDocId] = useState(null)
   const [canCreateRecurring, setCanCreateRecurring] = useState(false)
   const [canCreateFlexible, setCanCreateFlexible] = useState(false)
@@ -84,6 +94,10 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
     setApproveNonRegistered(false)
     setApproveRemarks('')
     setRegStatusOpen(false)
+    setApprovedRejectOpen(false)
+    setApprovedRejectReason('')
+    setRequestUpdateOpen(false)
+    setRequestUpdateReason('')
     orgsApi.getOrgDetail(orgToken).then((o) => {
       setOrg(o)
       // SP returns TINYINT (0/1), not a real boolean — coerce explicitly.
@@ -127,6 +141,7 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
         orgName: editForm.orgName.trim(),
         orgTypeLkpId: Number(editForm.orgTypeLkpId),
         regNumber: editForm.regNumber.trim(),
+        registrationDate: editForm.registrationDate || null,
         category: editForm.category || null,
         contactPerson: editForm.contactPerson || null,
         about: editForm.about || null,
@@ -215,6 +230,47 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
       onClose()
     } finally {
       setBusy(false)
+    }
+  }
+  // Reject an already-APPROVED org — backend now allows this (previously
+  // PENDING/UNDER_REVIEW only) and cascade-cancels the org's live projects.
+  // Kept as a separate handler/form from the PENDING-flow handleReject above
+  // since it lives in a different section of the drawer with its own state.
+  async function handleApprovedReject() {
+    if (!approvedRejectReason.trim()) return
+    setSavingCompliance(true)
+    try {
+      const res = await orgsApi.rejectOrg(orgToken, approvedRejectReason.trim())
+      if (res?.isSuccess === 1) {
+        onChanged?.()
+        onClose()
+      } else {
+        alert(res?.message || 'Could not reject organisation. Please try again.')
+      }
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Could not reject organisation. Please try again.')
+    } finally {
+      setSavingCompliance(false)
+    }
+  }
+  // Soft alternative to reject — org flips to NEEDS_UPDATE (hidden from public
+  // listings) but its projects/members are left untouched. Founder resubmits
+  // via the app; org lands in RESUBMITTED for Super Admin to re-approve.
+  async function handleRequestUpdate() {
+    if (!requestUpdateReason.trim()) return
+    setSavingCompliance(true)
+    try {
+      const res = await orgsApi.requestOrgUpdate(orgToken, requestUpdateReason.trim())
+      if (res?.isSuccess === 1) {
+        onChanged?.()
+        onClose()
+      } else {
+        alert(res?.message || 'Could not request update. Please try again.')
+      }
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Could not request update. Please try again.')
+    } finally {
+      setSavingCompliance(false)
     }
   }
   async function handleSuspend() {
@@ -342,10 +398,14 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
           <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' }}>
             <div><div className="xs">Org type</div><div className="h3" style={{ fontSize: 13 }}>{org.orgType || '—'}</div></div>
             <div><div className="xs">Members</div><div className="h3" style={{ fontSize: 13 }}>{org.memberCount ?? '—'}</div></div>
-            <div><div className="xs">Registered on</div><div className="h3" style={{ fontSize: 13 }}>{org.submittedAt || '—'}</div></div>
+            {/* "Registered on" = when this org signed up on Ripple Hub (Organisations.CreatedAt).
+                "Registration date" = the org's own govt registration date (Organisations.RegistrationDate) —
+                a completely different date, easy to confuse since both say "registration". */}
+            <div><div className="xs">Registered on Ripple Hub</div><div className="h3" style={{ fontSize: 13 }}>{org.submittedAt || '—'}</div></div>
             {/* org.regNumber was already returned by SuperAdmin_Org_GetDetail but
                 never rendered here — only shown inside the Edit form. */}
             <div><div className="xs">Registration No.</div><div className="h3" style={{ fontSize: 13 }}>{org.regNumber || (org.isNonRegistered ? 'Non-registered' : '—')}</div></div>
+            <div><div className="xs">Registration date</div><div className="h3" style={{ fontSize: 13 }}>{org.registrationDate ? String(org.registrationDate).slice(0, 10) : '—'}</div></div>
           </div>
 
           <div className="slab">Tax eligibility</div>
@@ -395,6 +455,7 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
               {orgTypes.map((t) => <option key={t.lookupValueId} value={t.lookupValueId}>{t.valueName}</option>)}
             </select>
             <input className="fi" placeholder="Registration number *" value={editForm.regNumber} onChange={(e) => updateEditField('regNumber', e.target.value)} />
+            <input className="fi" type="date" placeholder="Registration date" value={editForm.registrationDate} onChange={(e) => updateEditField('registrationDate', e.target.value)} />
             <input className="fi" placeholder="Category" value={editForm.category} onChange={(e) => updateEditField('category', e.target.value)} />
             <input className="fi" placeholder="Contact person" value={editForm.contactPerson} onChange={(e) => updateEditField('contactPerson', e.target.value)} />
             <input className="fi" placeholder="Contact email" value={editForm.contactEmail} onChange={(e) => updateEditField('contactEmail', e.target.value)} />
@@ -578,6 +639,44 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
             </button>
           </div>
 
+          <div className="slab">Compliance</div>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+            <button className="btn-o" style={{ flex: 1 }} onClick={() => { setRequestUpdateOpen((o) => !o); setApprovedRejectOpen(false) }} disabled={savingCompliance}>
+              Request Update
+            </button>
+            <button className="btn-rd" style={{ flex: 1 }} onClick={() => { setApprovedRejectOpen((o) => !o); setRequestUpdateOpen(false) }} disabled={savingCompliance}>
+              Reject
+            </button>
+          </div>
+          <div className={`reject-box${requestUpdateOpen ? ' on' : ''}`}>
+            <div className="fl" style={{ marginTop: 12 }}>
+              <label>Reason (shown to founder — org stays approved but hidden from public listings until they resubmit)</label>
+              <textarea
+                className="fta"
+                value={requestUpdateReason}
+                onChange={(e) => setRequestUpdateReason(e.target.value)}
+                placeholder="e.g. Please re-upload a clearer copy of your 80G certificate."
+              />
+            </div>
+            <button className="btn-o" style={{ width: '100%' }} onClick={handleRequestUpdate} disabled={savingCompliance || !requestUpdateReason.trim()}>
+              {savingCompliance ? 'Saving…' : 'Confirm — request update'}
+            </button>
+          </div>
+          <div className={`reject-box${approvedRejectOpen ? ' on' : ''}`}>
+            <div className="fl" style={{ marginTop: 12 }}>
+              <label>Reason for rejection (shown to founder — active projects will be cancelled)</label>
+              <textarea
+                className="fta"
+                value={approvedRejectReason}
+                onChange={(e) => setApprovedRejectReason(e.target.value)}
+                placeholder="e.g. Registration found to be fraudulent."
+              />
+            </div>
+            <button className="btn-rd" style={{ width: '100%' }} onClick={handleApprovedReject} disabled={savingCompliance || !approvedRejectReason.trim()}>
+              {savingCompliance ? 'Saving…' : 'Confirm rejection'}
+            </button>
+          </div>
+
           <div className="slab">Actions</div>
           <button className="btn-yw" style={{ width: '100%' }} onClick={() => setSuspendOpen((o) => !o)} disabled={busy}>Suspend organisation</button>
           <div className={`reject-box${suspendOpen ? ' on' : ''}`}>
@@ -587,6 +686,47 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
             </div>
             <button className="btn-yw" style={{ width: '100%' }} onClick={handleSuspend} disabled={busy}>Confirm suspension</button>
           </div>
+        </div>
+      )}
+
+      {(status === 'NEEDS_UPDATE' || status === 'RESUBMITTED') && (
+        <div>
+          <div className="slab">Status</div>
+          <div className="sm" style={{ marginBottom: 12 }}>
+            {status === 'NEEDS_UPDATE'
+              ? 'This organisation was previously approved but has been asked to update something. It is hidden from public listings until the founder resubmits.'
+              : 'The founder has resubmitted this organisation after an update request. Review the changes and re-approve, or reject.'}
+          </div>
+          {status === 'RESUBMITTED' && (
+            <>
+              <div className="fl" style={{ marginBottom: 10 }}>
+                <label>Remarks (optional, shown to org admins)</label>
+                <textarea
+                  className="fta"
+                  value={approveRemarks}
+                  onChange={(e) => setApproveRemarks(e.target.value.slice(0, 1000))}
+                  placeholder="Optional remarks for the organisation admin…"
+                  maxLength={1000}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="btn-tl" style={{ flex: 1 }} onClick={handleApprove} disabled={busy}>Approve</button>
+                <button className="btn-rd" style={{ flex: 1 }} onClick={() => setRejectOpen((o) => !o)}>Reject</button>
+              </div>
+              <div className={`reject-box${rejectOpen ? ' on' : ''}`}>
+                <div className="fl" style={{ marginTop: 12 }}>
+                  <label>Reason for rejection (shown to founder)</label>
+                  <textarea
+                    className="fta"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="e.g. Registration certificate unreadable, please re-upload a clear scan."
+                  />
+                </div>
+                <button className="btn-rd" style={{ width: '100%' }} onClick={handleReject} disabled={busy || !reason.trim()}>Confirm rejection</button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

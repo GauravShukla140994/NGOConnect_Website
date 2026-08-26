@@ -6,13 +6,18 @@ export async function getOrgsByStatus(statusCode, pageSize = 200) {
   return res.data?.data?.items ?? []
 }
 
-// Buckets orgs into the 4 tabs the prototype shows. Pending groups PENDING + UNDER_REVIEW.
+// Buckets orgs into the tabs the prototype shows. Pending groups PENDING +
+// UNDER_REVIEW. 2026-08-26: NEEDS_UPDATE + RESUBMITTED (org-level equivalent
+// of the member NEEDS_UPDATE/RESUBMITTED pair, raised via "Request Update" on
+// an already-approved org) are grouped into the same `pending` bucket as
+// PENDING/UNDER_REVIEW, since all four represent "awaiting Super Admin
+// action" — OrgDrawer distinguishes the exact status via `org.statusCode`.
 export async function getAllOrgsBucketed() {
-  const codes = ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'SUSPENDED', 'REJECTED']
+  const codes = ['PENDING', 'UNDER_REVIEW', 'NEEDS_UPDATE', 'RESUBMITTED', 'APPROVED', 'SUSPENDED', 'REJECTED']
   const results = await Promise.all(codes.map((c) => getOrgsByStatus(c).catch(() => [])))
   const byCode = Object.fromEntries(codes.map((c, i) => [c, results[i]]))
   return {
-    pending: [...byCode.PENDING, ...byCode.UNDER_REVIEW],
+    pending: [...byCode.PENDING, ...byCode.UNDER_REVIEW, ...byCode.NEEDS_UPDATE, ...byCode.RESUBMITTED],
     approved: byCode.APPROVED,
     suspended: byCode.SUSPENDED,
     rejected: byCode.REJECTED,
@@ -60,6 +65,16 @@ export async function setOrgNonRegistered(orgToken, isNonRegistered, remarks = n
 
 export async function rejectOrg(orgToken, reason) {
   const res = await client.put('/superadmin/orgs/reject', { orgToken, reason })
+  return res.data
+}
+
+// New (2026-08-26): soft reject for an already-APPROVED org — org flips to
+// NEEDS_UPDATE (hidden from public listings) instead of REJECTED, and its
+// projects are left untouched (unlike a full reject, which cancels them).
+// Founder resubmits via the app; org lands in RESUBMITTED for re-approval.
+// See SuperAdminController.RequestOrgUpdate / RequestOrgUpdateRequest.
+export async function requestOrgUpdate(orgToken, reason) {
+  const res = await client.put('/superadmin/orgs/request-update', { orgToken, reason })
   return res.data
 }
 
