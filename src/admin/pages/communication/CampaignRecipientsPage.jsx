@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getCampaign, getCampaignRecipients } from '../../api/communication'
+import { formatDateTime } from '../../utils/date'
 
 // Per-recipient drill-down — phone/email/name + individual delivery status.
 // DeliveredCount here means real device-confirmed delivery (CampaignRecipient_AckDelivered),
@@ -86,8 +87,8 @@ export default function CampaignRecipientsPage() {
                 <td className="sm">{r.mobile || '—'}</td>
                 <td className="sm">{r.channelCode}</td>
                 <td><span className={`pill ${STATUS_PILL[r.queueStatus] || 'pgr'}`}>{r.queueStatus}</span></td>
-                <td className="xs">{r.sentAt || '—'}</td>
-                <td className="xs">{r.deliveredAt || '—'}</td>
+                <td className="xs">{formatDateTime(r.sentAt)}</td>
+                <td className="xs">{formatDateTime(r.deliveredAt)}</td>
                 <td className="xs">{r.failReason || '—'}</td>
               </tr>
             ))}

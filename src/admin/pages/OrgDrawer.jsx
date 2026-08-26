@@ -4,6 +4,7 @@ import Avatar from '../components/Avatar'
 import * as orgsApi from '../api/orgs'
 import * as lookupsApi from '../api/lookups'
 import { getDocumentSignedUrl } from '../api/media'
+import { formatDateTime, formatDate } from '../utils/date'
 
 async function findLookup(typeCode) {
   const types = await lookupsApi.getLookupTypes()
@@ -401,11 +402,11 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
             {/* "Registered on" = when this org signed up on Ripple Hub (Organisations.CreatedAt).
                 "Registration date" = the org's own govt registration date (Organisations.RegistrationDate) —
                 a completely different date, easy to confuse since both say "registration". */}
-            <div><div className="xs">Registered on Ripple Hub</div><div className="h3" style={{ fontSize: 13 }}>{org.submittedAt || '—'}</div></div>
+            <div><div className="xs">Registered on Ripple Hub</div><div className="h3" style={{ fontSize: 13 }}>{formatDateTime(org.submittedAt)}</div></div>
             {/* org.regNumber was already returned by SuperAdmin_Org_GetDetail but
                 never rendered here — only shown inside the Edit form. */}
             <div><div className="xs">Registration No.</div><div className="h3" style={{ fontSize: 13 }}>{org.regNumber || (org.isNonRegistered ? 'Non-registered' : '—')}</div></div>
-            <div><div className="xs">Registration date</div><div className="h3" style={{ fontSize: 13 }}>{org.registrationDate ? String(org.registrationDate).slice(0, 10) : '—'}</div></div>
+            <div><div className="xs">Registration date</div><div className="h3" style={{ fontSize: 13 }}>{formatDate(org.registrationDate)}</div></div>
           </div>
 
           <div className="slab">Tax eligibility</div>
@@ -559,7 +560,7 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
           <div className="doc-ic">&#8226;</div>
           <div style={{ flex: 1 }}>
             <div className="h3" style={{ fontSize: 12.5 }}>{h.newStatusName}{h.reason ? ` — ${h.reason}` : ''}</div>
-            <div className="xs">{h.createdAt} · by {h.changedByType}</div>
+            <div className="xs">{formatDateTime(h.createdAt)} · by {h.changedByType}</div>
           </div>
         </div>
       ))}

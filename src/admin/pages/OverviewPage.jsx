@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { getDashboard } from '../api/dashboard'
 import Avatar from '../components/Avatar'
 import StatusPill from '../components/StatusPill'
+import { formatDateTime } from '../utils/date'
 
 export default function OverviewPage() {
   const [data, setData] = useState(null)
@@ -55,7 +56,7 @@ export default function OverviewPage() {
             {recent.map((o) => (
               <tr key={o.orgId}>
                 <td><div className="org-row"><Avatar name={o.orgName} photoUrl={o.logoUrl} size={32} radius={8} /> {o.orgName}</div></td>
-                <td className="sm">{o.submittedAt}</td>
+                <td className="sm">{formatDateTime(o.submittedAt)}</td>
                 <td><StatusPill status={o.statusCode} /></td>
               </tr>
             ))}

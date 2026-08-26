@@ -5,6 +5,7 @@ import {
   getCampaigns, sendCampaignNow, cancelCampaign, getCampaign,
   createCampaign, saveCampaignChannel, saveCampaignAudience,
 } from '../../api/communication'
+import { formatDateTime } from '../../utils/date'
 
 // Doubles as the campaign history view — Campaign_GetList already returns the
 // sent/delivered/opened/clicked/failed rollups per campaign, so there's no
@@ -178,7 +179,7 @@ export default function CampaignsPage() {
                 <td className="sm">{c.sentCount ?? '—'}</td>
                 <td className="sm">{c.deliveredCount ?? '—'}</td>
                 <td className="sm">{c.failedCount ?? '—'}</td>
-                <td className="sm">{c.createdAt}</td>
+                <td className="sm">{formatDateTime(c.createdAt)}</td>
                 <td>
                   <div className="act-row">
                     {c.statusCode === 'DRAFT' && (

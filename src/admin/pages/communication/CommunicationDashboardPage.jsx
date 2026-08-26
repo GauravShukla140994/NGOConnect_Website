@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getCommunicationDashboard, getCampaigns } from '../../api/communication'
 import StatusPill from '../../components/StatusPill'
+import { formatDateTime } from '../../utils/date'
 
 // Communication_GetDashboardStats returns raw counts only — rates are computed
 // here client-side on purpose (see NGOConnect_Complete_Setup_v4.9.sql comment
@@ -91,7 +92,7 @@ export default function CommunicationDashboardPage() {
                 <td className="sm">{c.channels || '—'}</td>
                 <td><StatusPill status={c.statusCode} /></td>
                 <td className="sm">{c.estimatedRecipients ?? '—'}</td>
-                <td className="sm">{c.createdAt}</td>
+                <td className="sm">{formatDateTime(c.createdAt)}</td>
               </tr>
             ))}
             {recent.length === 0 && <tr><td colSpan={5} className="xs" style={{ padding: 18 }}>No campaigns yet.</td></tr>}

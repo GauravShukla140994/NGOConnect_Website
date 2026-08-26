@@ -3,6 +3,7 @@ import Avatar from '../components/Avatar'
 import StatusPill from '../components/StatusPill'
 import * as orgsApi from '../api/orgs'
 import OrgDrawer from './OrgDrawer'
+import { formatDateTime } from '../utils/date'
 
 const TABS = [
   { key: 'pending', label: 'Pending' },
@@ -55,7 +56,7 @@ export default function OrganisationsPage() {
                 <td><div className="org-row"><Avatar name={o.orgName} photoUrl={o.logoUrl} size={32} radius={8} /> {o.orgName}</div></td>
                 <td className="sm">{o.orgType || '—'}</td>
                 <td className="sm">{o.city}</td>
-                <td className="sm">{o.submittedAt}</td>
+                <td className="sm">{formatDateTime(o.submittedAt)}</td>
                 <td><StatusPill status={o.statusCode} /></td>
                 <td>
                   {/* Only meaningful once approved — IsNonRegistered is just its

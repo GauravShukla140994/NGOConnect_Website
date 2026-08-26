@@ -6,6 +6,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown'
 import * as membersApi from '../api/members'
 import * as orgsApi from '../api/orgs'
 import MemberDrawer from './MemberDrawer'
+import { formatDateTime } from '../utils/date'
 
 export default function MembersPage() {
   const navigate = useNavigate()
@@ -76,7 +77,7 @@ export default function MembersPage() {
                 <td>{m.membershipStatus ? <StatusPill status={m.membershipStatus} /> : <span className="xs">—</span>}</td>
                 <td><StatusPill status={m.accountStatus} /></td>
                 <td><StatusPill status={m.profileVerificationStatus} /></td>
-                <td className="sm">{m.joinedAt}</td>
+                <td className="sm">{formatDateTime(m.joinedAt)}</td>
                 <td><button className="btn-o btn-sm" onClick={() => setSelectedUserToken(m.userToken)}>Review</button></td>
               </tr>
             ))}
