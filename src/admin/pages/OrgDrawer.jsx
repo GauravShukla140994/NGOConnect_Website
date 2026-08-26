@@ -343,6 +343,9 @@ export default function OrgDrawer({ orgToken, onClose, onChanged }) {
             <div><div className="xs">Org type</div><div className="h3" style={{ fontSize: 13 }}>{org.orgType || '—'}</div></div>
             <div><div className="xs">Members</div><div className="h3" style={{ fontSize: 13 }}>{org.memberCount ?? '—'}</div></div>
             <div><div className="xs">Registered on</div><div className="h3" style={{ fontSize: 13 }}>{org.submittedAt || '—'}</div></div>
+            {/* org.regNumber was already returned by SuperAdmin_Org_GetDetail but
+                never rendered here — only shown inside the Edit form. */}
+            <div><div className="xs">Registration No.</div><div className="h3" style={{ fontSize: 13 }}>{org.regNumber || (org.isNonRegistered ? 'Non-registered' : '—')}</div></div>
           </div>
 
           <div className="slab">Tax eligibility</div>
