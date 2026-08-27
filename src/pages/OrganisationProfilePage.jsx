@@ -14,8 +14,10 @@ import { APP_SCHEME_PREFIX, APP_STORE_URL, PLAY_STORE_URL, DEEP_LINK_TIMEOUT_MS 
 // only the website's URL segment changed from /ngo/ to /organisation/.
 //
 // Consumes:
-//   GET /public/org/{token}/full     → { orgId, profile, ratings, projects }
-//   GET /public/org/{token}/reviews  → PagedResult<review> (paginated, sortable)
+//   GET /public/org/{token}/full      → { orgId, profile, ratings, projects } (first-page preview)
+//   GET /public/org/{token}/projects  → PagedResult<project> (paginated "Load more")
+//   GET /public/org/{token}/reviews   → PagedResult<review> (paginated, sortable)
+//   GET /public/opportunity/{token}   → full project detail, lazy-loaded on "Expand"
 
 const SUPPORT_EMAIL = 'support@ripplehub.app'
 
@@ -76,6 +78,14 @@ export default function OrganisationProfilePage() {
   const [reviewsPage, setReviewsPage] = useState(0)
   const [sort, setSort] = useState('RECENT')
   const [loadingReviews, setLoadingReviews] = useState(false)
+
+  const [projects, setProjects] = useState([])
+  const [projectsTotal, setProjectsTotal] = useState(0)
+  const [projectsPage, setProjectsPage] = useState(0)
+  const [loadingProjects, setLoadingProjects] = useState(false)
+  const [expandedId, setExpandedId] = useState(null)
+  const [projectDetails, setProjectDetails] = useState({}) // projectId -> detail object
+  const [loadingDetailId, setLoadingDetailId] = useState(null)
 
   const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
   const storeUrl = isIOS ? APP_STORE_URL : PLAY_STORE_URL
@@ -139,14 +149,57 @@ export default function OrganisationProfilePage() {
     [token]
   )
 
+  const loadProjects = useCallback(
+    (page, replace) => {
+      setLoadingProjects(true)
+      fetch(`${import.meta.env.VITE_API_BASE_URL}/public/org/${encodeURIComponent(token)}/projects?pageNumber=${page}&pageSize=6`)
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.isSuccess === 1 && json.data) {
+            const items = json.data.items || []
+            setProjects((prev) => (replace ? items : [...prev, ...items]))
+            setProjectsTotal(json.data.totalCount ?? items.length)
+            setProjectsPage(page)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingProjects(false))
+    },
+    [token]
+  )
+
   useEffect(() => {
-    if (status === 'ready') loadReviews(1, sort, true)
+    if (status === 'ready') {
+      loadReviews(1, sort, true)
+      loadProjects(1, true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, sort])
 
+  // Lazy-loads full project detail (description, schedule, location, eligibility, etc.)
+  // the first time a card is expanded, then caches it — collapsing/re-expanding is instant.
+  function toggleExpand(project) {
+    const id = project.projectId
+    if (expandedId === id) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(id)
+    if (projectDetails[id] || !project.projectToken) return
+    setLoadingDetailId(id)
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/public/opportunity/${encodeURIComponent(project.projectToken)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.isSuccess === 1 && json.data?.project) {
+          setProjectDetails((prev) => ({ ...prev, [id]: json.data.project }))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingDetailId((cur) => (cur === id ? null : cur)))
+  }
+
   const org = data?.profile
   const ratings = data?.ratings
-  const projects = data?.projects
 
   return (
     <div className="min-h-screen bg-[#F1F5F9]">
@@ -332,26 +385,96 @@ export default function OrganisationProfilePage() {
             </div>
 
             {/* Projects */}
-            {Array.isArray(projects) && projects.length > 0 && (
+            {(projects.length > 0 || loadingProjects) && (
               <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                 <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Projects</h2>
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {projects.map((p) => (
-                    <div key={p.projectId} className="rounded-xl border border-slate-200 p-3.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-slate-800">{p.projectName}</p>
-                        {p.statusCode && (
-                          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
-                            {p.statusCode}
-                          </span>
+                  {projects.map((p) => {
+                    const isOpen = expandedId === p.projectId
+                    const detail = projectDetails[p.projectId]
+                    const isLoadingDetail = loadingDetailId === p.projectId
+                    return (
+                      <div key={p.projectId} className="rounded-xl border border-slate-200 p-3.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-slate-800">{p.projectName}</p>
+                          {p.statusCode && (
+                            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
+                              {p.statusCode}
+                            </span>
+                          )}
+                        </div>
+                        {(p.landmark || p.address) && (
+                          <p className="mt-1 text-xs text-slate-400">📍 {p.landmark || p.address}</p>
+                        )}
+
+                        <button
+                          onClick={() => toggleExpand(p)}
+                          className="mt-2 text-xs font-semibold text-primary hover:underline"
+                        >
+                          {isOpen ? 'Hide details ▲' : 'Expand details ▼'}
+                        </button>
+
+                        {isOpen && (
+                          <div className="mt-2.5 space-y-1.5 border-t border-slate-100 pt-2.5 text-xs text-slate-600">
+                            {isLoadingDetail && <p className="text-slate-400">Loading details…</p>}
+                            {!isLoadingDetail && !detail && (
+                              <p className="text-slate-400">Details unavailable right now.</p>
+                            )}
+                            {detail && (
+                              <>
+                                {detail.description && (
+                                  <p className="whitespace-pre-line leading-relaxed">{detail.description}</p>
+                                )}
+                                {detail.category && <p><span className="font-semibold text-slate-500">Category:</span> {detail.category}</p>}
+                                {detail.scheduleType && <p><span className="font-semibold text-slate-500">Schedule:</span> {detail.scheduleType}</p>}
+                                {detail.oneTimeDate && <p><span className="font-semibold text-slate-500">Date:</span> {detail.oneTimeDate}</p>}
+                                {(detail.recurStart || detail.recurEnd) && (
+                                  <p><span className="font-semibold text-slate-500">Runs:</span> {[detail.recurStart, detail.recurEnd].filter(Boolean).join(' – ')}{detail.recurDays ? ` (${detail.recurDays})` : ''}</p>
+                                )}
+                                {(detail.sessionStartTime || detail.sessionEndTime) && (
+                                  <p><span className="font-semibold text-slate-500">Time:</span> {[detail.sessionStartTime, detail.sessionEndTime].filter(Boolean).join(' – ')}</p>
+                                )}
+                                {detail.locationType && <p><span className="font-semibold text-slate-500">Location type:</span> {detail.locationType}</p>}
+                                {(detail.addressLine || detail.city) && (
+                                  <p><span className="font-semibold text-slate-500">Address:</span> {[detail.addressLine, detail.landmark, detail.city, detail.state].filter(Boolean).join(', ')}</p>
+                                )}
+                                {typeof detail.maxVolunteers === 'number' && (
+                                  <p><span className="font-semibold text-slate-500">Volunteers needed:</span> {detail.maxVolunteers}{typeof detail.approvedCount === 'number' ? ` (${detail.approvedCount} approved)` : ''}</p>
+                                )}
+                                {detail.minHoursRequired != null && (
+                                  <p><span className="font-semibold text-slate-500">Min. hours:</span> {detail.minHoursRequired}</p>
+                                )}
+                                {detail.joinType && <p><span className="font-semibold text-slate-500">Joining:</span> {detail.joinType}</p>}
+                                {detail.impactSummary && (
+                                  <p><span className="font-semibold text-slate-500">Impact:</span> {detail.impactSummary}</p>
+                                )}
+                                {detail.googleMapsUrl && (
+                                  <p>
+                                    <a href={detail.googleMapsUrl} target="_blank" rel="noreferrer" className="font-semibold text-primary underline">
+                                      View on Google Maps
+                                    </a>
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
-                      {(p.landmark || p.address) && (
-                        <p className="mt-1 text-xs text-slate-400">📍 {p.landmark || p.address}</p>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
+
+                {projects.length < projectsTotal && (
+                  <div className="mt-4 text-center">
+                    <button
+                      onClick={() => loadProjects(projectsPage + 1, false)}
+                      disabled={loadingProjects}
+                      className="rounded-full border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {loadingProjects ? 'Loading…' : 'Load more projects'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
