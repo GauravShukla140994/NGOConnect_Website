@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { initials } from '../utils/initials.js'
 import { APP_SCHEME_PREFIX, APP_STORE_URL, PLAY_STORE_URL, DEEP_LINK_TIMEOUT_MS } from '../constants/deepLinking.js'
 
-// Full, standalone, modern organisation public profile page — /organisation/{token}.
+// Full, standalone, modern organisation public profile page.
+// Reachable via either /organisation/{token} (path) or /organisation/?id={token}
+// (query) — both resolve to the same token and the same page (see main.jsx route
+// registration and the pathToken/searchParams fallback below).
 //
 // Unlike NgoLandingPage.jsx (the old /ngo/{token} card), this page does NOT
 // auto-attempt an app deep link. It's meant to be a real, browsable web page
@@ -68,7 +71,11 @@ function RatingBar({ label, pct = 0 }) {
 }
 
 export default function OrganisationProfilePage() {
-  const { token } = useParams()
+  // Token can arrive as either /organisation/{token} (path) or
+  // /organisation/?id={token} (query) — both must resolve the same page.
+  const { token: pathToken } = useParams()
+  const [searchParams] = useSearchParams()
+  const token = pathToken || searchParams.get('id')
   const [status, setStatus] = useState('loading') // loading | ready | unavailable | error
   const [errorMsg, setErrorMsg] = useState('')
   const [data, setData] = useState(null)
@@ -99,6 +106,13 @@ export default function OrganisationProfilePage() {
 
   useEffect(() => {
     let cancelled = false
+
+    if (!token) {
+      setErrorMsg('This link is missing its organisation reference.')
+      setStatus('error')
+      return
+    }
+
     setStatus('loading')
 
     fetch(`${import.meta.env.VITE_API_BASE_URL}/public/org/${encodeURIComponent(token)}/full`)
